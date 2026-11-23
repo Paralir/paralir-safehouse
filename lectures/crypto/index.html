@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CTF Crypto 方向系统讲义 · 网页版</title>
+<style>
+:root{
+  --bg:#0f1419; --bg-elev:#171e26; --bg-card:#1b232d; --bg-code:#12181f;
+  --text:#e6edf3; --text-dim:#9fb0c3; --text-faint:#6b7d90;
+  --accent:#4ea1ff; --accent-soft:rgba(78,161,255,.14);
+  --accent2:#39d3a5; --border:#2a3644; --border-soft:#212c38;
+  --code-kw:#ff7b72; --code-st:#a5d6ff; --code-nm:#d2a8ff; --code-cm:#7d8fa3;
+  --shadow:0 8px 30px rgba(0,0,0,.35);
+  --sidebar-w:320px; --content-max:900px;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+html[data-theme="light"]{
+  --bg:#f6f8fa; --bg-elev:#ffffff; --bg-card:#ffffff; --bg-code:#f6f8fa;
+  --text:#1f2933; --text-dim:#4a5866; --text-faint:#7b8794;
+  --accent:#0969da; --accent-soft:rgba(9,105,218,.09);
+  --accent2:#0a8f6f; --border:#d8dee4; --border-soft:#e8edf1;
+  --code-kw:#cf222e; --code-st:#0a3069; --code-nm:#8250df; --code-cm:#6e7781;
+  --shadow:0 6px 24px rgba(27,31,35,.10);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+  font-size:16px;line-height:1.75;-webkit-font-smoothing:antialiased}
+
+/* progress bar */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:200;transition:width .1s}
+
+/* topbar */
+.topbar{position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;gap:12px;
+  padding:0 20px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border-soft);z-index:120}
+.menu-btn{display:none;background:none;border:0;color:var(--text);font-size:22px;cursor:pointer;padding:4px 8px}
+.brand{font-weight:800;font-size:15px;letter-spacing:.3px;color:var(--text);display:flex;align-items:center;gap:9px}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:grid;place-items:center;color:#fff;font-size:13px;font-weight:900}
+.brand small{color:var(--text-faint);font-weight:500;font-size:12px}
+.topbar .spacer{flex:1}
+.icon-btn{background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);
+  border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px;transition:.2s}
+.icon-btn:hover{color:var(--accent);border-color:var(--accent)}
+
+/* layout */
+.layout{display:flex;margin-top:56px}
+.sidebar{position:fixed;top:56px;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-elev);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;z-index:100;transition:transform .25s}
+.sidebar-head{padding:16px 16px 10px}
+.search{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:9px;
+  padding:9px 12px;color:var(--text);font-size:13px;outline:none}
+.search:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.sidebar-hint{font-size:11px;color:var(--text-faint);margin-top:8px;padding:0 2px}
+.toc{overflow-y:auto;flex:1;padding:6px 8px 30px}
+.toc::-webkit-scrollbar{width:7px}
+.toc::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.toc a{color:var(--text-dim);text-decoration:none;display:block;border-radius:7px;
+  font-size:13.5px;line-height:1.45;padding:6px 10px;margin:1px 0;transition:.12s;
+  border-left:2px solid transparent}
+.toc a:hover{color:var(--text);background:var(--bg-card)}
+.toc a.active{color:var(--accent);background:var(--accent-soft);border-left-color:var(--accent);font-weight:600}
+.toc .chap{margin-top:10px}
+.toc .chap>a{color:var(--text);font-weight:650;font-size:13.5px}
+.toc .sub{padding-left:14px}
+.toc .sub a{font-size:12.5px;color:var(--text-faint)}
+.toc .sub a:hover,.toc .sub a.active{color:var(--accent)}
+.toc a.hide{display:none}
+
+/* main */
+.main{margin-left:var(--sidebar-w);flex:1;min-width:0}
+.hero{max-width:var(--content-max);margin:0 auto;padding:64px 28px 38px}
+.hero .kicker{color:var(--accent);font-weight:700;font-size:13px;letter-spacing:1.5px;text-transform:uppercase}
+.hero h1{font-size:40px;line-height:1.2;margin:14px 0 16px;font-weight:850;letter-spacing:-.5px}
+.hero p{color:var(--text-dim);font-size:16px;margin:0 0 22px}
+.hero .tags{display:flex;flex-wrap:wrap;gap:8px}
+.hero .tag{background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);
+  padding:5px 11px;border-radius:20px;font-size:12.5px}
+.hero .stat{display:flex;gap:22px;margin-top:26px;flex-wrap:wrap}
+.hero .stat div{color:var(--text-faint);font-size:12.5px}
+.hero .stat b{display:block;font-size:22px;color:var(--text);font-weight:800}
+
+.article{max-width:var(--content-max);margin:0 auto;padding:0 28px 120px}
+.hd{scroll-margin-top:76px}
+.hd-1{font-size:27px;font-weight:800;margin:52px 0 18px;padding:0 0 12px;border-bottom:2px solid var(--border);letter-spacing:-.3px}
+.hd-2{font-size:21px;font-weight:750;margin:34px 0 14px;color:var(--text)}
+.hd-3{font-size:17px;font-weight:700;margin:26px 0 10px;color:var(--accent2)}
+.hd-1::before{content:"";display:inline-block;width:8px;height:8px;background:var(--accent);
+  border-radius:2px;margin-right:12px;vertical-align:middle}
+.article p{margin:0 0 16px;color:var(--text)}
+.article ul,.article ol{margin:0 0 18px;padding-left:26px}
+.article li{margin:6px 0;color:var(--text)}
+.article strong{color:var(--text);font-weight:700}
+.article a{color:var(--accent)}
+article code:not(.code-body){background:var(--bg-code);border:1px solid var(--border-soft);
+  color:var(--code-nm);padding:1px 6px;border-radius:5px;font-family:var(--mono);font-size:13.5px}
+.callout{margin:20px 0;padding:14px 18px;background:var(--accent-soft);
+  border-left:3px solid var(--accent);border-radius:0 8px 8px 0;color:var(--text-dim);font-size:14.5px}
+.callout strong{color:var(--accent)}
+.table-wrap{overflow-x:auto;margin:20px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;background:var(--bg-card);border-radius:10px;overflow:hidden}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border-soft);vertical-align:top}
+th{background:var(--accent-soft);color:var(--text);font-weight:700;font-size:13px}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--accent-soft)}
+
+/* code */
+.code-wrap{margin:20px 0;background:var(--bg-code);border:1px solid var(--border);border-radius:11px;overflow:hidden;box-shadow:var(--shadow)}
+.code-head{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;
+  background:color-mix(in srgb,var(--bg-card) 80%,transparent);border-bottom:1px solid var(--border-soft)}
+.code-lang{font-size:11px;color:var(--text-faint);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px}
+.copy-btn{background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;
+  padding:3px 10px;font-size:11.5px;cursor:pointer;transition:.15s}
+.copy-btn:hover{color:var(--accent);border-color:var(--accent)}
+.copy-btn.done{color:var(--accent2);border-color:var(--accent2)}
+pre{margin:0;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.65}
+pre::-webkit-scrollbar{height:8px}
+pre::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.code-body{color:var(--text);white-space:pre}
+.kw{color:var(--code-kw);font-weight:600}
+.st{color:var(--code-st)}
+.nm{color:var(--code-nm)}
+.cm{color:var(--code-cm);font-style:italic}
+
+/* back to top */
+#toTop{position:fixed;right:24px;bottom:26px;width:44px;height:44px;border-radius:50%;
+  background:var(--accent);color:#fff;border:0;font-size:20px;cursor:pointer;box-shadow:var(--shadow);
+  opacity:0;pointer-events:none;transition:.25s;z-index:130}
+#toTop.show{opacity:1;pointer-events:auto}
+
+/* overlay */
+.overlay{display:none;position:fixed;inset:56px 0 0;background:rgba(0,0,0,.5);z-index:90}
+
+@media(max-width:960px){
+  .menu-btn{display:block}
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .overlay.show{display:block}
+  .hero{padding-top:44px}
+  .hero h1{font-size:31px}
+}
+@media print{.sidebar,.topbar,#toTop,#progress,.overlay{display:none!important}.main{margin-left:0}}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="目录">&#9776;</button>
+  <div class="brand"><span class="logo">CTF</span><span>Crypto 讲义 <small>网页版</small></span></div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="expandBtn" title="展开/收起目录">展开目录</button>
+  <button class="icon-btn" id="themeBtn" title="切换主题">🌙 暗色</button>
+</div>
+<div class="overlay" id="overlay"></div>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <input class="search" id="search" type="text" placeholder="搜索目录…  例如：Wiener、格密码">
+      <div class="sidebar-hint">点击章节跳转 · 滚动自动高亮当前位置</div>
+    </div>
+    <nav class="toc" id="toc" aria-label="文档目录"></nav>
+  </aside>
+  <main class="main">
+    <header class="hero">
+      <div class="kicker">Capture The Flag · Crypto</div>
+      <h1>CTF Crypto 方向系统讲义</h1>
+      <p>从数学基础到格密码的系统化学习路径 · 原理讲解 + 典型例题 + 解题思路</p>
+      <div class="tags">
+        <span class="tag">数论基础</span><span class="tag">编码与古典密码</span>
+        <span class="tag">对称密码</span><span class="tag">哈希</span>
+        <span class="tag">RSA 攻击大全</span><span class="tag">离散对数与 ECC</span>
+        <span class="tag">格密码</span><span class="tag">后量子</span>
+      </div>
+      <div class="stat">
+        <div><b>14</b>章节</div><div><b>126</b>目录条目</div>
+        <div><b>58</b>代码示例</div><div><b>原理+例题</b>讲解方式</div>
+      </div>
+    </header>
+    <article class="article" id="article">
+<blockquote class="callout">从数学基础到格密码的系统化学习路径 · 原理讲解 + 典型例题 + 解题思路</blockquote>
+<h2 id="sec-1" class="hd hd-1">前言</h2>
+<p>密码学（Crypto）是 CTF 竞赛中最考验数学功底与思维深度的方向之一。与 Web、PWN 等方向不同，Crypto 题目往往给出一个"看似不可解"的加密流程，要求选手从数论、代数、概率乃至格理论中寻找破绽。它不依赖庞大的工程代码，却要求对算法原理有透彻的理解。</p>
+<p>本讲义面向有一定编程基础（Python）、希望系统掌握 CTF 密码学的读者。全篇按照"数学基础 → 编码与古典密码 → 对称密码 → 哈希 → 公钥密码（RSA / 离散对数 / 椭圆曲线）→ 格密码 → 随机数与侧信道 → 工具与方法论"的递进顺序组织，力求做到：<strong>每个知识点都讲清原理、给出公式、附上可复现的代码或例题</strong>。</p>
+<p><strong>如何使用本讲义</strong></p>
+<ol>
+<li>第一遍通读，建立整体知识框架，不必纠结于每个公式的推导。</li>
+<li>第二遍精读，对每个攻击方法亲手复现一道题，理解"为什么能破"。</li>
+<li>实战时把本讲义当作速查手册，按题型定位到对应章节。</li>
+</ol>
+<p><strong>符号约定</strong></p>
+<div class='table-wrap'><table><thead><tr><th>符号</th><th>含义</th></tr></thead><tbody>
+<tr><td><code>a ≡ b (mod n)</code></td><td>a 与 b 模 n 同余</td></tr>
+<tr><td><code>gcd(a, b)</code></td><td>a 与 b 的最大公约数</td></tr>
+<tr><td><code>a^-1 mod n</code></td><td>a 在模 n 下的乘法逆元</td></tr>
+<tr><td><code>φ(n)</code></td><td>欧拉函数，小于 n 且与 n 互质的正整数个数</td></tr>
+<tr><td><code>ord_n(a)</code></td><td>a 模 n 的阶</td></tr>
+<tr><td><code>Z_n</code></td><td>模 n 的整数环 <code>{0,1,...,n-1}</code></td></tr>
+<tr><td><code>Z_n*</code></td><td>模 n 的可逆元构成的乘法群</td></tr>
+</tbody></table></div>
+<h2 id="sec-2" class="hd hd-1">第一章 CTF Crypto 概览与学习路线</h2>
+<h3 id="sec-3" class="hd hd-2">1.1 Crypto 在 CTF 中的地位</h3>
+<p>CTF（Capture The Flag）竞赛通常分为 Web、PWN、Reverse、Crypto、Misc、Mobile 等方向。Crypto 方向的特点是：</p>
+<ul>
+<li><strong>理论性强</strong>：题目本质是数学问题，答案往往是一个数学结论的直接应用。</li>
+<li><strong>题目形态多样</strong>：可能给出一段密文和加密脚本，也可能只给一段"奇怪"的输出让你还原参数。</li>
+<li><strong>与 Misc 交叉</strong>：编码、隐写、压缩包密码等经常穿插出现。</li>
+<li><strong>上手门槛高、天花板也高</strong>：入门只需理解模运算，深入则需要格理论、代数数论。</li>
+</ul>
+<h3 id="sec-4" class="hd hd-2">1.2 能力图谱</h3>
+<p>一个成熟的 Crypto 选手需要具备四层能力：</p>
+<ol>
+<li><strong>数学基础层</strong>：模运算、群论、数论、线性代数。这是所有攻击的语言。</li>
+<li><strong>算法原理层</strong>：理解 RSA、AES、ECC、哈希等算法"为什么安全"，才能知道"哪里不安全"。</li>
+<li><strong>攻击方法层</strong>：掌握针对每种算法的经典攻击（如 Wiener、Coppersmith、LLL）。</li>
+<li><strong>工具工程层</strong>：熟练使用 Python 密码库、SageMath、因式分解工具，能快速验证想法。</li>
+</ol>
+<h3 id="sec-5" class="hd hd-2">1.3 推荐学习路线</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">阶段一（入门）：编码 → 古典密码 → 异或 → 简单数论
+阶段二（进阶）：RSA 基础攻击 → 分组密码模式 → 哈希攻击
+阶段三（提高）：离散对数 → 椭圆曲线 → 随机数攻击
+阶段四（高阶）：格密码 → Coppersmith → 侧信道</code></pre></div>
+<h3 id="sec-6" class="hd hd-2">1.4 环境搭建与工具链</h3>
+<div class='table-wrap'><table><thead><tr><th>工具</th><th>用途</th><th>安装 / 说明</th></tr></thead><tbody>
+<tr><td>Python 3</td><td>主力语言</td><td>几乎所有脚本都用它</td></tr>
+<tr><td><code>pycryptodome</code></td><td>对称/哈希/公钥原语</td><td><code>pip install pycryptodome</code></td></tr>
+<tr><td><code>gmpy2</code></td><td>高精度整数运算</td><td><code>pip install gmpy2</code>，大数开方、逆元极快</td></tr>
+<tr><td><code>sympy</code></td><td>符号数学</td><td><code>pip install sympy</code>，因式分解、素性检测</td></tr>
+<tr><td><code>sageMath</code></td><td>代数数论计算</td><td>格、椭圆曲线、Coppersmith 的必备神器</td></tr>
+<tr><td><code>libnum</code></td><td>编码转换工具</td><td><code>pip install libnum</code>，字符串与数字互转</td></tr>
+<tr><td><code>hashcat</code> / <code>john</code></td><td>口令爆破</td><td>哈希破解</td></tr>
+<tr><td>CyberChef / ciphey</td><td>在线编码识别</td><td>编码套娃一键解</td></tr>
+<tr><td>factordb.com</td><td>在线因式分解数据库</td><td>查询 n 的分解</td></tr>
+<tr><td>yafu / msieve</td><td>本地大数分解</td><td>分解百位级 n</td></tr>
+</tbody></table></div>
+<p><strong>提示</strong>：SageMath 是高阶 Crypto 的"外挂"，本讲义中格密码、Coppersmith、椭圆曲线部分强烈建议用 Sage 复现。安装可参考官方文档或使用在线 SageCell。</p>
+<h2 id="sec-7" class="hd hd-1">第二章 数学基础：CTF Crypto 的语言</h2>
+<h3 id="sec-8" class="hd hd-2">2.1 模运算与同余</h3>
+<p><strong>定义</strong>：对整数 a 和正整数 n，<code>a mod n</code> 表示 a 除以 n 的余数。若 a、b 除以 n 余数相同，记作 <code>a ≡ b (mod n)</code>。</p>
+<p><strong>基本性质</strong>（在模 n 下）：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">(a + b) mod n = ((a mod n) + (b mod n)) mod n
+(a - b) mod n = ((a mod n) - (b mod n)) mod n
+(a × b) mod n = ((a mod n) × (b mod n)) mod n
+(a ^ b) mod n 可用快速幂在 O(log b) 内算出</code></pre></div>
+<p><strong>快速幂</strong>（Python 内置 <code>pow(a, b, n)</code> 即是快速幂）：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> pow_mod(a, b, n):
+    res = <span class="nm">1</span>
+    a %= n
+    <span class="kw">while</span> b:
+        <span class="kw">if</span> b &amp; <span class="nm">1</span>:
+            res = res * a % n
+        a = a * a % n
+        b &gt;&gt;= <span class="nm">1</span>
+    <span class="kw">return</span> res</code></pre></div>
+<h3 id="sec-9" class="hd hd-2">2.2 欧几里得算法与扩展欧几里得</h3>
+<p><strong>欧几里得算法</strong>求最大公约数：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> <span class="kw">gcd</span>(a, b):
+    <span class="kw">while</span> b:
+        a, b = b, a % b
+    <span class="kw">return</span> a</code></pre></div>
+<p><strong>扩展欧几里得算法（exgcd）</strong> 是 CTF 中使用频率最高的算法之一。它不仅能求 <code>gcd(a,b)</code>，还能找到整数 x、y 使得：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">a·x + b·y = gcd(a, b)</code></pre></div>
+<p>当 <code>gcd(a, n) = 1</code> 时，上式给出 <code>a·x ≡ 1 (mod n)</code>，即 x 就是 a 在模 n 下的<strong>乘法逆元</strong>。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> exgcd(a, b):
+    <span class="kw">if</span> b == <span class="nm">0</span>:
+        <span class="kw">return</span> a, <span class="nm">1</span>, <span class="nm">0</span>
+    g, x1, y1 = exgcd(b, a % b)
+    <span class="kw">x</span>, y = y1, x1 - (a // b) * y1
+    <span class="kw">return</span> g, <span class="kw">x</span>, y
+
+<span class="kw">def</span> inv(a, n):
+    g, <span class="kw">x</span>, _ = exgcd(a, n)
+    <span class="kw">if</span> g != <span class="nm">1</span>:
+        raise ValueError(<span class="st">"逆元不存在"</span>)
+    <span class="kw">return</span> <span class="kw">x</span> % n</code></pre></div>
+<blockquote class="callout"><strong>例题</strong>：求 3 在模 11 下的逆元。 <code>exgcd(3,11)</code> 得 <code>3×4 + 11×(-1) = 1</code>，故 <code>3^-1 ≡ 4 (mod 11)</code>。验证：<code>3×4=12≡1 (mod 11)</code> ✓</blockquote>
+<h3 id="sec-10" class="hd hd-2">2.3 欧拉定理与费马小定理</h3>
+<p><strong>欧拉定理</strong>：若 <code>gcd(a, n) = 1</code>，则</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">a^φ(n) ≡ 1 (mod n)</code></pre></div>
+<p><strong>费马小定理</strong>（n 为质数 p 的特例）：若 p 是质数且 <code>p ∤ a</code>，则</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">a^(p-1) ≡ 1 (mod p)</code></pre></div>
+<p>由此得到<strong>费马小定理求逆元</strong>：<code>a^-1 ≡ a^(p-2) (mod p)</code>（p 为质数）。</p>
+<p><strong>欧拉函数 φ(n) 的计算</strong>：</p>
+<ul>
+<li>若 n 是质数 p，则 <code>φ(p) = p - 1</code>。</li>
+<li>若 <code>n = p^k</code>，则 <code>φ(p^k) = p^k - p^(k-1) = p^(k-1)(p-1)</code>。</li>
+<li>若 <code>gcd(m, n) = 1</code>，则 <code>φ(mn) = φ(m)·φ(n)</code>（积性函数）。</li>
+</ul>
+<blockquote class="callout"><strong>例题</strong>：<code>φ(12) = φ(4)×φ(3) = (4-2)×(3-1) = 2×2 = 4</code>。小于 12 且与 12 互质的数为 1,5,7,11，正好 4 个。</blockquote>
+<h3 id="sec-11" class="hd hd-2">2.4 中国剩余定理（CRT）</h3>
+<p><strong>问题</strong>：已知</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">x ≡ a1 (mod m1)
+x ≡ a2 (mod m2)
+...
+x ≡ ak (mod mk)</code></pre></div>
+<p>其中各 <code>mi</code> 两两互质，求 x 在 <code>mod M = m1·m2·...·mk</code> 下的唯一解。</p>
+<p><strong>解法</strong>：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">Mi = M / mi
+ti = Mi^-1 mod mi
+x = Σ(ai · Mi · ti) mod M</code></pre></div>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> functools <span class="kw">import</span> reduce
+
+<span class="kw">def</span> crt(remainders, moduli):
+    M = reduce(<span class="kw">lambda</span> a, b: a * b, moduli)
+    <span class="kw">x</span> = <span class="nm">0</span>
+    <span class="kw">for</span> ai, mi <span class="kw">in</span> zip(remainders, moduli):
+        Mi = M // mi
+        <span class="kw">x</span> += ai * Mi * <span class="kw">pow</span>(Mi, -<span class="nm">1</span>, mi)
+    <span class="kw">return</span> <span class="kw">x</span> % M</code></pre></div>
+<blockquote class="callout"><strong>例题（"韩信点兵"）</strong>： <code>x ≡ 2 (mod 3)</code>, <code>x ≡ 3 (mod 5)</code>, <code>x ≡ 2 (mod 7)</code>。 M = 105，M1=35→35^-1 mod3=2，M2=21→21^-1 mod5=1，M3=15→15^-1 mod7=1。 x = 2×35×2 + 3×21×1 + 2×15×1 = 140+63+30 = 233 ≡ 23 (mod 105)。</blockquote>
+<p>CRT 在 RSA 的 dp/dq 泄露攻击、多素数 RSA 中反复出现，务必熟练。</p>
+<h3 id="sec-12" class="hd hd-2">2.5 阶、原根与离散对数</h3>
+<p><strong>阶</strong>：满足 <code>a^k ≡ 1 (mod n)</code> 的最小正整数 k 称为 a 模 n 的阶，记作 <code>ord_n(a)</code>。由欧拉定理，<code>ord_n(a) | φ(n)</code>。</p>
+<p><strong>原根</strong>：若 <code>ord_n(a) = φ(n)</code>，则称 a 是模 n 的一个原根。此时 <code>{a^1, a^2, ..., a^φ(n)}</code> 恰好遍历 <code>Z_n*</code> 的所有元素。</p>
+<p><strong>离散对数问题（DLP）</strong>：在原根 g 生成的群中，给定 <code>y ≡ g^x (mod p)</code>，求 x。这在素数域上被认为是困难问题，是 DH、ElGamal、DSA 的安全性基础。</p>
+<blockquote class="callout"><strong>例题</strong>：在 mod 7 下，3 是原根（φ(7)=6，3 的阶为 6）。已知 <code>3^x ≡ 6 (mod 7)</code>，枚举：3^1=3，3^2=2，3^3=6，故 x=3。</blockquote>
+<h3 id="sec-13" class="hd hd-2">2.6 二次剩余与二次互反律</h3>
+<p><strong>定义</strong>：若同余方程 <code>x^2 ≡ a (mod p)</code> 有解，则称 a 是模 p 的二次剩余。</p>
+<p><strong>勒让德符号</strong>：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">(a/p) =  1  若 a 是模 p 的二次剩余
+        -1  若 a 是模 p 的二次非剩余
+         0  若 p | a</code></pre></div>
+<p><strong>欧拉判别准则</strong>：<code>a^((p-1)/2) ≡ (a/p) (mod p)</code>。</p>
+<p><strong>Rabin 密码体制</strong> 的安全性正是基于"求二次剩余在合数模下是困难的"（等价于大数分解）。当模数是质数 p 且 <code>p ≡ 3 (mod 4)</code> 时，可直接开方：<code>x ≡ ±a^((p+1)/4) (mod p)</code>。</p>
+<h3 id="sec-14" class="hd hd-2">2.7 素性检测与因式分解</h3>
+<p><strong>米勒-拉宾素性检测</strong>（概率算法，实战足够）：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> random
+
+<span class="kw">def</span> is_prime(n, k=<span class="nm">20</span>):
+    <span class="kw">if</span> n &lt; <span class="nm">2</span>:
+        <span class="kw">return</span> <span class="kw">False</span>
+    <span class="kw">for</span> p <span class="kw">in</span> [<span class="nm">2</span>, <span class="nm">3</span>, <span class="nm">5</span>, <span class="nm">7</span>, <span class="nm">11</span>, <span class="nm">13</span>, <span class="nm">17</span>, <span class="nm">19</span>, <span class="nm">23</span>, <span class="nm">29</span>, <span class="nm">31</span>, <span class="nm">37</span>]:
+        <span class="kw">if</span> n % p == <span class="nm">0</span>:
+            <span class="kw">return</span> n == p
+    d, s = n - <span class="nm">1</span>, <span class="nm">0</span>
+    <span class="kw">while</span> d % <span class="nm">2</span> == <span class="nm">0</span>:
+        d //= <span class="nm">2</span>
+        s += <span class="nm">1</span>
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="kw">range</span>(k):
+        a = random.randrange(<span class="nm">2</span>, n - <span class="nm">1</span>)
+        <span class="kw">x</span> = <span class="kw">pow</span>(a, d, n)
+        <span class="kw">if</span> <span class="kw">x</span> == <span class="nm">1</span> <span class="kw">or</span> <span class="kw">x</span> == n - <span class="nm">1</span>:
+            <span class="kw">continue</span>
+        <span class="kw">for</span> _ <span class="kw">in</span> <span class="kw">range</span>(s - <span class="nm">1</span>):
+            <span class="kw">x</span> = <span class="kw">x</span> * <span class="kw">x</span> % n
+            <span class="kw">if</span> <span class="kw">x</span> == n - <span class="nm">1</span>:
+                <span class="kw">break</span>
+        <span class="kw">else</span>:
+            <span class="kw">return</span> <span class="kw">False</span>
+    <span class="kw">return</span> <span class="kw">True</span></code></pre></div>
+<p><strong>常用分解方法</strong>：</p>
+<div class='table-wrap'><table><thead><tr><th>方法</th><th>适用场景</th></tr></thead><tbody>
+<tr><td>试除法</td><td>n 很小或有小因子</td></tr>
+<tr><td>Pollard's rho</td><td>中等大小 n（几十位），有较小因子</td></tr>
+<tr><td>Pollard's p-1</td><td>p-1 是光滑数（所有因子都小）</td></tr>
+<tr><td>Fermat 分解</td><td>p、q 非常接近</td></tr>
+<tr><td><code>factordb</code> / yafu / msieve</td><td>工程化分解，优先尝试</td></tr>
+</tbody></table></div>
+<p><strong>Pollard's rho 实现</strong>：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> random, math
+<span class="kw">from</span> <span class="kw">gcd</span> <span class="kw">import</span> <span class="kw">gcd</span>  <span class="cm"># 或使用 math.<span class="kw">gcd</span></span>
+
+<span class="kw">def</span> pollard_rho(n):
+    <span class="kw">if</span> n % <span class="nm">2</span> == <span class="nm">0</span>:
+        <span class="kw">return</span> <span class="nm">2</span>
+    <span class="kw">while</span> <span class="kw">True</span>:
+        c = random.randrange(<span class="nm">1</span>, n)
+        f = <span class="kw">lambda</span> <span class="kw">x</span>: (<span class="kw">x</span> * <span class="kw">x</span> + c) % n
+        <span class="kw">x</span>, y, d = <span class="nm">2</span>, <span class="nm">2</span>, <span class="nm">1</span>
+        <span class="kw">while</span> d == <span class="nm">1</span>:
+            <span class="kw">x</span> = f(<span class="kw">x</span>)
+            y = f(f(y))
+            d = math.<span class="kw">gcd</span>(abs(<span class="kw">x</span> - y), n)
+        <span class="kw">if</span> d != n:
+            <span class="kw">return</span> d</code></pre></div>
+<h3 id="sec-15" class="hd hd-2">2.8 本节小结</h3>
+<p>数论是 Crypto 的地基。请务必做到：能默写 exgcd 与快速幂、理解欧拉定理的来龙去脉、熟练使用 CRT。后面所有 RSA、格密码的攻击，本质上都是这些基础工具的组合运用。</p>
+<h2 id="sec-16" class="hd hd-1">第三章 编码与古典密码</h2>
+<h3 id="sec-17" class="hd hd-2">3.1 字符与进制基础</h3>
+<ul>
+<li><strong>ASCII 码</strong>：每个字符对应 0–127 的整数，如 <code>A</code>=65，<code>a</code>=97，<code>0</code>=48。</li>
+<li><strong>字节与十六进制</strong>：一个字节 = 8 bit = 2 位十六进制。<code>0x41</code> = 65 = <code>A</code>。</li>
+<li><strong>常用转换</strong>（Python）：</li>
+</ul>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">s = <span class="st">"CTF"</span>
+b = s.encode()                    <span class="cm"># b<span class="st">'CTF'</span></span>
+h = b.hex()                       <span class="cm"># <span class="st">'435446'</span></span>
+n = <span class="kw">int</span>.from_bytes(b, <span class="st">'big'</span>)      <span class="cm"># <span class="nm">4459666</span></span>
+back = n.to_bytes((n.bit_length()+<span class="nm">7</span>)//<span class="nm">8</span>, <span class="st">'big'</span>).decode()</code></pre></div>
+<h3 id="sec-18" class="hd hd-2">3.2 Base 系列编码</h3>
+<p>Base64 将 3 字节（24 bit）拆成 4 个 6 bit 组，每组映射到字符表 <code>A-Za-z0-9+/</code>，不足用 <code>=</code> 补齐。</p>
+<div class='table-wrap'><table><thead><tr><th>编码</th><th>字符集特征</th><th>典型用途</th></tr></thead><tbody>
+<tr><td>Base16</td><td>0-9A-F</td><td>十六进制</td></tr>
+<tr><td>Base32</td><td>A-Z2-7</td><td>大小写敏感场景</td></tr>
+<tr><td>Base64</td><td>A-Za-z0-9+/=</td><td>最通用</td></tr>
+<tr><td>Base58</td><td>去掉 0,O,I,l 等易混字符</td><td>比特币地址</td></tr>
+<tr><td>Base85</td><td>更密集</td><td>Python pickle</td></tr>
+</tbody></table></div>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> base64
+base64.b64encode(b<span class="st">'CTF'</span>)      <span class="cm"># b<span class="st">'Q1RG'</span></span>
+base64.b32encode(b<span class="st">'CTF'</span>)      <span class="cm"># b<span class="st">'INKEM==='</span></span>
+base64.b16encode(b<span class="st">'CTF'</span>)      <span class="cm"># b<span class="st">'435446'</span></span></code></pre></div>
+<blockquote class="callout"><strong>识别技巧</strong>：Base64 常以 <code>=</code> 结尾且长度为 4 的倍数；Base32 全大写且含大量 <code>A-Z2-7</code>。编码套娃（多层编码）在 Misc/Crypto 混合题里极常见，用 CyberChef 的 "Magic" 功能或 <code>ciphey</code> 可自动解码。</blockquote>
+<h3 id="sec-19" class="hd hd-2">3.3 古典替换密码</h3>
+<p><strong>凯撒密码（Caesar）</strong>：字母按固定位移 k 平移。解密即枚举 k ∈ [0,25]。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> caesar_decrypt(s, k):
+    <span class="kw">return</span> <span class="st">''</span>.join(
+        chr((ord(c) - ord(<span class="st">'a'</span>) - k) % <span class="nm">26</span> + ord(<span class="st">'a'</span>)) <span class="kw">if</span> c.islower()
+        <span class="kw">else</span> chr((ord(c) - ord(<span class="st">'A'</span>) - k) % <span class="nm">26</span> + ord(<span class="st">'A'</span>)) <span class="kw">if</span> c.isupper()
+        <span class="kw">else</span> c <span class="kw">for</span> c <span class="kw">in</span> s
+    )
+<span class="kw">for</span> k <span class="kw">in</span> <span class="kw">range</span>(<span class="nm">26</span>):
+    <span class="kw">print</span>(k, caesar_decrypt(cipher, k))</code></pre></div>
+<p><strong>仿射密码（Affine）</strong>：<code>c ≡ a·m + b (mod 26)</code>，其中 <code>gcd(a,26)=1</code>。解密需要 a 的逆元：<code>m ≡ a^-1·(c-b) (mod 26)</code>。a 只有 12 种合法取值，可直接爆破 a、b。</p>
+<p><strong>维吉尼亚密码（Vigenère）</strong>：多表替换，密钥是一个词，按密钥字母循环位移。破解分两步：</p>
+<ol>
+<li>用<strong>卡西斯基试验（Kasiski）</strong>或<strong>重合指数（Index of Coincidence）</strong>确定密钥长度 L。</li>
+<li>按密钥位置分成 L 组，每组做单表频率分析。</li>
+</ol>
+<p><strong>单表替换密码</strong>：26 个字母随机映射。破解依靠<strong>频率分析</strong>——英文中 <code>e,t,a,o,i,n</code> 出现频率最高，结合双字母组合 <code>th,he,in</code> 等，再辅以人工猜测。工具 <code>quipqiup.com</code> 可自动求解。</p>
+<h3 id="sec-20" class="hd hd-2">3.4 换位密码</h3>
+<p><strong>栅栏密码（Rail Fence）</strong>：把明文按 Zig-Zag 写到 k 行栅栏上，再逐行读出。解密时枚举 k。</p>
+<p><strong>Columnar Transposition（列换位）</strong>：把明文按行写入矩阵，按密钥列的字典序读出。</p>
+<h3 id="sec-21" class="hd hd-2">3.5 其他常见编码</h3>
+<ul>
+<li><strong>摩尔斯电码</strong>：<code>.</code> 和 <code>-</code>，注意分隔规则。</li>
+<li><strong>培根密码</strong>：5 位二进制（a/b 或 A/B）表示一个字母。</li>
+<li><strong>Brainfuck / Ook! / 二维码 / 埃特巴什码（Atbash，a↔z）</strong> 等。</li>
+</ul>
+<blockquote class="callout"><strong>解题提示</strong>：遇到"看起来像乱码但字符集受限"的字符串，第一反应是识别编码。Misc 与 Crypto 的边界往往就在于此——先识别编码，再谈密码分析。</blockquote>
+<h2 id="sec-22" class="hd hd-1">第四章 对称密码与异或分析</h2>
+<h3 id="sec-23" class="hd hd-2">4.1 对称密码概览</h3>
+<p>对称密码指加密与解密使用同一密钥，分为两类：</p>
+<ul>
+<li><strong>分组密码（Block Cipher）</strong>：每次处理固定长度分组（如 AES 的 128 bit）。代表：DES、3DES、AES、Blowfish。</li>
+<li><strong>流密码（Stream Cipher）</strong>：生成密钥流与明文逐位异或。代表：RC4、ChaCha20、ZUC。</li>
+</ul>
+<h3 id="sec-24" class="hd hd-2">4.2 异或（XOR）的性质与攻击</h3>
+<p>异或是 Crypto 中最重要的运算之一，性质：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">a ^ a = 0        a ^ 0 = a        a ^ b ^ b = a
+交换律、结合律成立</code></pre></div>
+<p><strong>关键推论</strong>：若 <code>c = m ^ k</code>（流密码模型），则：</p>
+<ul>
+<li>已知明文 m 和密文 c，可直接恢复密钥流 <code>k = c ^ m</code>。</li>
+<li>用同一密钥流加密两条消息（<strong>密钥重用攻击</strong>）：<code>c1 ^ c2 = m1 ^ m2</code>，得到两个明文的异或，可用空格/字母频率恢复。</li>
+</ul>
+<blockquote class="callout"><strong>例题（密钥重用）</strong>： 已知 <code>c1 = m1 ^ k</code>，<code>c2 = m2 ^ k</code>。则 <code>c1 ^ c2 = m1 ^ m2</code>。 由于明文多为可打印 ASCII，且空格 <code>0x20</code> 与字母异或会把大小写翻转，可通过"猜一个位置的明文字符，推出另一位置"的方式逐步还原（crib-dragging）。</blockquote>
+<h3 id="sec-25" class="hd hd-2">4.3 分组密码的工作模式</h3>
+<div class='table-wrap'><table><thead><tr><th>模式</th><th>特点</th><th>常见漏洞</th></tr></thead><tbody>
+<tr><td>ECB</td><td>每个分组独立加密</td><td><strong>相同明文块 → 相同密文块</strong>，泄漏明文结构</td></tr>
+<tr><td>CBC</td><td>每个明文块与前一块密文异或后加密</td><td>IV 可预测、padding oracle、位翻转攻击</td></tr>
+<tr><td>CFB / OFB</td><td>把分组密码当流密码用</td><td>IV 重用</td></tr>
+<tr><td>CTR</td><td>计数器生成密钥流</td><td>nonce 重用 = 灾难（密钥流重用）</td></tr>
+<tr><td>GCM</td><td>CTR + 认证标签</td><td>nonce 重用导致认证密钥泄漏</td></tr>
+</tbody></table></div>
+<p><strong>ECB 检测</strong>：若密文中出现重复的块，且题目给的数据较长，很可能是 ECB。经典例题"企鹅图"（ECB penguin）就是加密位图后仍能看出轮廓。</p>
+<p><strong>CBC 位翻转攻击</strong>：CBC 解密时 <code>P_i = D(C_i) ^ C_{i-1}</code>。篡改 <code>C_{i-1}</code> 的一个字节，可以精确控制 <code>P_i</code> 对应字节的值（但会破坏 <code>P_{i-1}</code>）。</p>
+<h3 id="sec-26" class="hd hd-2">4.4 Padding Oracle 攻击</h3>
+<p>当服务端在解密后校验 padding（如 PKCS#7）是否合法，且对"padding 错误"与"其他错误"返回不同响应时，就构成 padding oracle。攻击者可以逐字节恢复明文，甚至伪造密文。</p>
+<p>PKCS#7 padding：缺 k 个字节就填 k 个值为 k 的字节（如缺 3 字节填 <code>0x03 0x03 0x03</code>）。</p>
+<p>攻击流程（CBC）：</p>
+<ol>
+<li>从最后一个字节开始，逐个尝试 IV 的字节值，直到 padding 合法。</li>
+<li>确定倒数第 i 个字节后，固定已知的 padding 值继续向前推进。</li>
+<li>每个字节平均 128 次尝试，一个分组约 128×16 次请求。</li>
+</ol>
+<h3 id="sec-27" class="hd hd-2">4.5 DES 与 AES</h3>
+<p><strong>DES</strong>：64 bit 分组，56 bit 有效密钥，16 轮 Feistel 结构。已可被暴力破解，实战中多为教学题。</p>
+<p><strong>AES</strong>：128 bit 分组，密钥长度 128/192/256 bit。核心操作：SubBytes（S 盒）、ShiftRows、MixColumns、AddRoundKey。AES 本身没有实用的数学攻击（除侧信道），CTF 中通常考查其<strong>工作模式</strong>或<strong>密钥管理</strong>的失误，而非算法本身。</p>
+<h3 id="sec-28" class="hd hd-2">4.6 RC4 与流密码</h3>
+<p>RC4 算法分两步：KSA（密钥调度算法）初始化 256 字节状态数组 S，PRGA 生成密钥流。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> rc4(key, data):
+    S = list(<span class="kw">range</span>(<span class="nm">256</span>))
+    j = <span class="nm">0</span>
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="kw">range</span>(<span class="nm">256</span>):                      <span class="cm"># KSA</span>
+        j = (j + S[i] + key[i % <span class="kw">len</span>(key)]) % <span class="nm">256</span>
+        S[i], S[j] = S[j], S[i]
+    out, i, j = bytearray(), <span class="nm">0</span>, <span class="nm">0</span>
+    <span class="kw">for</span> ch <span class="kw">in</span> data:                            <span class="cm"># PRGA</span>
+        i = (i + <span class="nm">1</span>) % <span class="nm">256</span>
+        j = (j + S[i]) % <span class="nm">256</span>
+        S[i], S[j] = S[j], S[i]
+        K = S[(S[i] + S[j]) % <span class="nm">256</span>]
+        out.append(ch ^ K)
+    <span class="kw">return</span> <span class="kw">bytes</span>(out)</code></pre></div>
+<p>RC4 的弱点：密钥流前几个字节与密钥有统计相关性（Fluhrer-Mantin-Shamir 攻击），WEP 协议因此被攻破。</p>
+<h3 id="sec-29" class="hd hd-2">4.7 本节小结</h3>
+<p>对称密码题目中，<strong>算法本身几乎无法攻破</strong>，考点集中在：</p>
+<ol>
+<li>工作模式误用（ECB、CTR nonce 重用）。</li>
+<li>异或的线性性质（密钥重用、已知明文）。</li>
+<li>实现缺陷（padding oracle、IV 可预测、弱随机数）。</li>
+</ol>
+<p>抓住这三点，就能应对绝大多数对称密码题。</p>
+<h2 id="sec-30" class="hd hd-1">第五章 哈希函数与消息认证</h2>
+<h3 id="sec-31" class="hd hd-2">5.1 哈希函数的基本性质</h3>
+<p>密码学哈希函数 H 把任意长度输入映射为固定长度输出，需满足：</p>
+<ol>
+<li><strong>单向性</strong>：给定 h，难以找到 m 使 H(m)=h。</li>
+<li><strong>抗碰撞性</strong>：难以找到 m1≠m2 使 H(m1)=H(m2)。</li>
+<li><strong>抗第二原像性</strong>：给定 m1，难以找到 m2≠m1 使 H(m2)=H(m1)。</li>
+</ol>
+<p>常见算法：MD5（128 bit，已破）、SHA-1（160 bit，已破）、SHA-256 / SHA-512（SHA-2 系列，仍安全）、SHA-3、SM3（国密）。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> Crypto.Hash <span class="kw">import</span> MD5, SHA256, SHA1
+MD5.new(b<span class="st">'CTF'</span>).hexdigest()        <span class="cm"># <span class="st">'c9d2bfb1...'</span></span>
+SHA256.new(b<span class="st">'CTF'</span>).hexdigest()</code></pre></div>
+<h3 id="sec-32" class="hd hd-2">5.2 MD5 与 SHA-1 的实际攻击</h3>
+<ul>
+<li><strong>MD5 碰撞</strong>：可在秒级构造任意前缀碰撞（choosen-prefix collision），工具 <code>hashclash</code>。</li>
+<li><strong>长度扩展攻击</strong>：MD5、SHA-1 基于 Merkle–Damgård 结构，存在长度扩展漏洞。</li>
+<li><strong>彩虹表</strong>：MD5 明文爆破极快（<code>hashcat</code> 每秒数十亿次）。</li>
+</ul>
+<blockquote class="callout"><strong>CTF 常见套路</strong>：给定 <code>hash(m + secret)</code> 和 m，求 secret 或构造新的合法消息——通常是长度扩展攻击。</blockquote>
+<h3 id="sec-33" class="hd hd-2">5.3 长度扩展攻击（Length Extension Attack）</h3>
+<p><strong>原理</strong>：Merkle–Damgård 结构的哈希过程为 <code>H_i = f(H_{i-1}, block_i)</code>。若已知 <code>H(m)</code> 和 m 的长度，即使不知道 m 的具体内容（如 m = secret || data），也能继续追加数据 <code>padding || suffix</code> 并计算出 <code>H(m || padding || suffix)</code>——因为初始内部状态就是 <code>H(m)</code>。</p>
+<p><strong>攻击条件</strong>：</p>
+<ol>
+<li>已知 <code>hash(secret || data)</code> 的值。</li>
+<li>已知 secret 的长度（用于构造正确的 padding）。</li>
+<li>服务端使用 <code>hash(secret || data)</code> 做认证。</li>
+</ol>
+<p><strong>工具</strong>：<code>hashpumpy</code>（Python 库）可一键完成。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> hashpumpy
+<span class="cm"># 已知 hash(salt+data) 和原 data，求追加 suffix 后的新 hash</span>
+new_hash, new_msg = hashpumpy.hashpump(
+    known_hash, data, suffix, key_length)</code></pre></div>
+<blockquote class="callout"><strong>防御</strong>：使用 HMAC，或采用 SHA-3 等抗长度扩展的结构。</blockquote>
+<h3 id="sec-34" class="hd hd-2">5.3b Merkle-Damgård 结构与填充细节</h3>
+<p>理解长度扩展攻击，必须理解 MD5/SHA-1/SHA-2 共用的 <strong>Merkle-Damgård 结构</strong>：</p>
+<ol>
+<li><strong>初始化</strong>：取固定的初始链接值 IV（如 MD5 的 <code>0x67452301 efcdab89 98badcfe 10325476</code>）。</li>
+<li><strong>填充（Padding）</strong>：在消息末尾补一个 <code>1</code> bit，再补若干个 <code>0</code>，最后追加原消息长度的 64 bit 大端表示，使总长度是 512 bit 的倍数。</li>
+<li><strong>分块压缩</strong>：<code>H_i = Compress(H_{i-1}, block_i)</code>，最终 <code>H_n</code> 即摘要。</li>
+</ol>
+<p>关键在于：<strong>摘要 <code>H(m)</code> 就是处理完最后一块后的内部状态</strong>。攻击者知道 <code>H(m)</code> 和 m 的长度，就能伪造出正确的填充块并继续压缩——这正是长度扩展攻击的本质。</p>
+<blockquote class="callout"><strong>SHA-256 填充示例</strong>：若消息长 <code>l</code> 字节，填充为 <code>0x80 || 0x00... || (l×8 的 64 位大端)</code>，总长补齐到 64 字节的整数倍。手写攻击脚本时填充差一个字节会导致摘要完全不同，务必用 <code>hashpumpy</code> 等成熟工具。</blockquote>
+<h3 id="sec-35" class="hd hd-2">5.3c 哈希碰撞的现实意义</h3>
+<ul>
+<li><strong>MD5</strong>：2004 年王小云教授给出碰撞构造方法；2008 年"选择前缀碰撞"可在几秒内构造两张内容不同但 MD5 相同的证书/图片。工具：<code>hashclash</code>、<code>fastcoll</code>。</li>
+<li><strong>SHA-1</strong>：2017 年 Google 的 SHAttered 攻击构造了首个实际碰撞；2020 年 choosen-prefix 碰撞成本进一步降低。</li>
+<li><strong>CTF 应用</strong>：给出两个"MD5 相同"的文件让你找差异、或要求构造碰撞绕过校验，通常直接用 <code>fastcoll</code> 生成一对碰撞块即可。</li>
+</ul>
+<h3 id="sec-36" class="hd hd-2">5.4 HMAC</h3>
+<p>HMAC（Hash-based Message Authentication Code）利用哈希函数构造带密钥的认证码：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">HMAC(K, m) = H((K' ^ opad) || H((K' ^ ipad) || m))</code></pre></div>
+<p>其中 <code>K'</code> 是补齐/哈希后的密钥，ipad=<code>0x36</code>，opad=<code>0x5c</code> 重复填充。HMAC 抗长度扩展攻击，是消息认证的标准方案。</p>
+<h3 id="sec-37" class="hd hd-2">5.5 本节小结</h3>
+<p>哈希题在 CTF 中主要集中在：</p>
+<ol>
+<li>碰撞构造（MD5/SHA-1）。</li>
+<li>长度扩展攻击。</li>
+<li>爆破原像（弱口令、已知明文空间小）。</li>
+<li>HMAC 相关（密钥长度、时间戳绕过）。</li>
+</ol>
+<h2 id="sec-38" class="hd hd-1">第六章 RSA：原理与攻击方法大全</h2>
+<p>RSA 是 CTF Crypto 中出题最多、攻击方法最丰富的算法。掌握 RSA 基本等于掌握 CTF Crypto 的半壁江山。本章系统梳理 RSA 的原理与全部主流攻击。</p>
+<h3 id="sec-39" class="hd hd-2">6.1 RSA 算法回顾</h3>
+<p><strong>密钥生成</strong>：</p>
+<ol>
+<li>选两个大质数 p、q，令 <code>n = p·q</code>。</li>
+<li><code>φ(n) = (p-1)(q-1)</code>。</li>
+<li>选 e 满足 <code>1 ＜ e ＜ φ(n)</code> 且 <code>gcd(e, φ(n)) = 1</code>。</li>
+<li>计算 <code>d ≡ e^-1 (mod φ(n))</code>。</li>
+</ol>
+<p>公钥 <code>(n, e)</code>，私钥 <code>(n, d)</code>。</p>
+<p><strong>加密与解密</strong>：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">c ≡ m^e (mod n)
+m ≡ c^d (mod n)</code></pre></div>
+<p><strong>正确性依据</strong>：由欧拉定理，<code>m^(ed) = m^(1+kφ(n)) ≡ m (mod n)</code>。</p>
+<h3 id="sec-40" class="hd hd-2">6.2 RSA 攻击总览（速查表）</h3>
+<div class='table-wrap'><table><thead><tr><th>攻击类型</th><th>特征 / 条件</th><th>核心方法</th></tr></thead><tbody>
+<tr><td>直接分解 n</td><td>n 较小 / p、q 接近 / 有在线记录</td><td>试除、Fermat、Pollard、factordb</td></tr>
+<tr><td>e = 1</td><td>密文就是明文</td><td>直接读</td></tr>
+<tr><td>小 e + 小 m</td><td><code>m^e ＜ n</code></td><td>直接开 e 次方根</td></tr>
+<tr><td>小 e 广播攻击</td><td>同一 m，多个不同 n</td><td>CRT + 开 e 次方根</td></tr>
+<tr><td>共模攻击</td><td>同一 n，多个互质 e</td><td>扩展欧几里得 + 指数运算</td></tr>
+<tr><td>共享素因子</td><td>多个 n 有公共质因子</td><td>gcd(n1, n2)</td></tr>
+<tr><td>低解密指数 d</td><td>d 很小（d ＜ n^0.292）</td><td>Wiener 连分数攻击</td></tr>
+<tr><td>dp / dq 泄露</td><td>给出 dp 或 dq</td><td>推导 p、q</td></tr>
+<tr><td>已知 φ(n)</td><td>给出 phi</td><td>直接求 d</td></tr>
+<tr><td>已知 p+q 或 p-q</td><td>给出 p、q 的和或差</td><td>解方程求 p、q</td></tr>
+<tr><td>e 与 φ 不互质</td><td>gcd(e,φ)≠1</td><td>AMM / 低指数根</td></tr>
+<tr><td>部分素数已知</td><td>p 的高位/低位已知</td><td>Coppersmith</td></tr>
+<tr><td>n 为质数</td><td>n 本身是质数</td><td>φ(n)=n-1</td></tr>
+<tr><td>多素数 RSA</td><td>n = p·q·r...</td><td>扩展 φ</td></tr>
+<tr><td>小 n</td><td>n 很小</td><td>直接爆破 / 分解</td></tr>
+</tbody></table></div>
+<h3 id="sec-41" class="hd hd-2">6.3 直接分解 n</h3>
+<p>拿到 n 后第一件事：<strong>先尝试分解它</strong>。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="cm"># <span class="nm">1</span>. 在线数据库（最快）</span>
+<span class="cm"># factordb.com 输入 n 的十进制</span>
+
+<span class="cm"># <span class="nm">2</span>. 小因子 / Fermat（p、q 接近）</span>
+<span class="kw">import</span> math
+<span class="kw">def</span> fermat_factor(n):
+    a = math.isqrt(n)
+    <span class="kw">if</span> a * a &lt; n:
+        a += <span class="nm">1</span>
+    <span class="kw">while</span> <span class="kw">True</span>:
+        b2 = a*a - n
+        b = math.isqrt(b2)
+        <span class="kw">if</span> b*b == b2:
+            <span class="kw">return</span> a-b, a+b
+        a += <span class="nm">1</span></code></pre></div>
+<blockquote class="callout"><strong>经验</strong>：CTF 里的 n 通常在 256–1024 bit。512 bit 以下的 n 用 yafu 几分钟可破；1024 bit 若出题人"留了后门"（p、q 接近、小因子等），也能破。</blockquote>
+<h3 id="sec-42" class="hd hd-2">6.4 e = 1 与小 e 直接开根</h3>
+<p><strong>e = 1</strong>：<code>c ≡ m (mod n)</code>，密文即明文（可能需从数字转回字符串）。</p>
+<p><strong>小 e + 小 m</strong>：若 <code>m^e ＜ n</code>，则没有发生模约减，<code>m = 整数开 e 次方根(c)</code>。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> gmpy2 <span class="kw">import</span> iroot
+m, exact = iroot(c, e)
+<span class="kw">if</span> exact:
+    <span class="kw">print</span>(long_to_bytes(<span class="kw">int</span>(m)))</code></pre></div>
+<h3 id="sec-43" class="hd hd-2">6.5 小 e 广播攻击（Håstad 攻击）</h3>
+<p><strong>场景</strong>：同一明文 m，用相同的指数 e、不同的模数 n_i（且互质）加密多次，得到 c_i。若收集到至少 e 组，可用 CRT 恢复。</p>
+<p><strong>原理</strong>：由 CRT 得 <code>x ≡ m^e (mod N)</code>，其中 <code>N = ∏n_i</code>。当 <code>m^e ＜ N</code> 时，<code>x = m^e</code> 精确成立，直接开 e 次方根得到 m。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> Crypto.Util.number <span class="kw">import</span> long_to_bytes
+<span class="kw">from</span> gmpy2 <span class="kw">import</span> iroot
+
+<span class="kw">def</span> broadcast_attack(cs, ns, e):
+    <span class="kw">x</span> = crt(cs, ns)                     <span class="cm"># 用第二章的 CRT</span>
+    m, exact = iroot(<span class="kw">x</span>, e)
+    <span class="kw">return</span> long_to_bytes(<span class="kw">int</span>(m)) <span class="kw">if</span> exact <span class="kw">else</span> <span class="kw">None</span></code></pre></div>
+<h3 id="sec-44" class="hd hd-2">6.6 共模攻击（Common Modulus）</h3>
+<p><strong>场景</strong>：同一模数 n，同一明文 m，两个互质的指数 e1、e2，给出 c1、c2。</p>
+<p><strong>原理</strong>：<code>gcd(e1, e2) = 1</code>，由扩展欧几里得得 <code>e1·s1 + e2·s2 = 1</code>，则：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">c1^s1 · c2^s2 ≡ m^(e1·s1 + e2·s2) ≡ m (mod n)</code></pre></div>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> math <span class="kw">import</span> <span class="kw">gcd</span>
+
+<span class="kw">def</span> common_modulus(c1, c2, e1, e2, n):
+    <span class="kw">assert</span> <span class="kw">gcd</span>(e1, e2) == <span class="nm">1</span>
+    _, s1, s2 = exgcd(e1, e2)
+    <span class="kw">return</span> (<span class="kw">pow</span>(c1, s1, n) * <span class="kw">pow</span>(c2, s2, n)) % n</code></pre></div>
+<blockquote class="callout"><strong>注意</strong>：若 s1、s2 为负，用逆元处理：<code>pow(c1, s1, n)</code> 当 s1＜0 时改为 <code>pow(pow(c1, -1, n), -s1, n)</code>。</blockquote>
+<h3 id="sec-45" class="hd hd-2">6.7 共享素因子攻击</h3>
+<p><strong>场景</strong>：两个（或多个）n 由出题人用同一个 p 生成。</p>
+<p><strong>原理</strong>：计算 <code>gcd(n1, n2)</code> 即得 p，进而分解两者。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> math
+p = math.<span class="kw">gcd</span>(n1, n2)
+<span class="kw">if</span> p &gt; <span class="nm">1</span>:
+    q1, q2 = n1 // p, n2 // p</code></pre></div>
+<blockquote class="callout"><strong>实战提示</strong>：拿到多个 n 时，两两求 gcd 是标准操作，成本极低。</blockquote>
+<h3 id="sec-46" class="hd hd-2">6.8 Wiener 攻击（低解密指数 d）</h3>
+<p><strong>场景</strong>：d 太小（当 <code>d ＜ n^0.25 / 3</code> 时有效，理论界 <code>d ＜ n^0.292</code>）。</p>
+<p><strong>原理</strong>：由 <code>ed ≡ 1 (mod φ(n))</code>，存在 k 使 <code>ed - kφ(n) = 1</code>。当 d 很小时，<code>e/φ(n) ≈ k/d</code>，而 <code>φ(n) ≈ n</code>，故 <code>e/n ≈ k/d</code>。可用<strong>连分数</strong>展开 <code>e/n</code> 逼近 <code>k/d</code>，再验证。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> fractions <span class="kw">import</span> Fraction
+
+<span class="kw">def</span> continued_fraction(n, d):
+    cf = []
+    <span class="kw">while</span> d:
+        cf.append(n // d)
+        n, d = d, n % d
+    <span class="kw">return</span> cf
+
+<span class="kw">def</span> convergents(cf):
+    p0, p1, q0, q1 = <span class="nm">0</span>, <span class="nm">1</span>, <span class="nm">1</span>, <span class="nm">0</span>
+    <span class="kw">for</span> a <span class="kw">in</span> cf:
+        p0, p1 = p1, a * p1 + p0
+        q0, q1 = q1, a * q1 + q0
+        <span class="kw">yield</span> p1, q1
+
+<span class="kw">def</span> wiener(e, n):
+    <span class="kw">for</span> k, d <span class="kw">in</span> convergents(continued_fraction(e, n)):
+        <span class="kw">if</span> k == <span class="nm">0</span>:
+            <span class="kw">continue</span>
+        phi = (e * d - <span class="nm">1</span>) // k
+        <span class="kw">if</span> (e * d - <span class="nm">1</span>) % k:
+            <span class="kw">continue</span>
+        <span class="cm"># 由 φ(n) 反推 p、q：解 <span class="kw">x</span>^<span class="nm">2</span> - (n - phi + <span class="nm">1</span>)<span class="kw">x</span> + n = <span class="nm">0</span></span>
+        s = n - phi + <span class="nm">1</span>
+        D = s * s - <span class="nm">4</span> * n
+        <span class="kw">if</span> D &gt;= <span class="nm">0</span>:
+            r = isqrt(D)
+            <span class="kw">if</span> r * r == D:
+                p, q = (s + r) // <span class="nm">2</span>, (s - r) // <span class="nm">2</span>
+                <span class="kw">if</span> p * q == n:
+                    <span class="kw">return</span> d
+    <span class="kw">return</span> <span class="kw">None</span></code></pre></div>
+<h3 id="sec-47" class="hd hd-2">6.9 dp / dq 泄露攻击</h3>
+<p><strong>场景</strong>：给出 dp 或 dq，其中 <code>dp = d mod (p-1)</code>，<code>dq = d mod (q-1)</code>。</p>
+<p><strong>原理（已知 dp）</strong>：</p>
+<p>由 <code>e·dp ≡ 1 (mod p-1)</code>，得 <code>e·dp = 1 + k(p-1)</code>，其中 <code>0 ＜ k ＜ e</code>。对常见的小 e（如 e=65537）可枚举 k：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">p - 1 = (e·dp - 1) / k   （需整除）</code></pre></div>
+<p>对每个候选 p-1，检查 <code>gcd(p-1, n)</code> 或验证 <code>n % p == 0</code>。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> attack_dp(dp, e, n):
+    <span class="kw">for</span> k <span class="kw">in</span> <span class="kw">range</span>(<span class="nm">1</span>, e):
+        <span class="kw">if</span> (e * dp - <span class="nm">1</span>) % k:
+            <span class="kw">continue</span>
+        p_minus_1 = (e * dp - <span class="nm">1</span>) // k
+        p = p_minus_1 + <span class="nm">1</span>
+        <span class="kw">if</span> n % p == <span class="nm">0</span>:
+            <span class="kw">return</span> p
+    <span class="kw">return</span> <span class="kw">None</span></code></pre></div>
+<p>得到 p 后，<code>q = n // p</code>，正常解密即可。</p>
+<h3 id="sec-48" class="hd hd-2">6.10 已知 φ(n) / p+q / p-q</h3>
+<p><strong>已知 φ(n)</strong>：由 <code>p+q = n - φ(n) + 1</code>，结合 <code>p·q = n</code>，解方程 <code>x² - (p+q)x + n = 0</code> 得 p、q。</p>
+<p><strong>已知 p+q</strong>：直接代入上面方程。<strong>已知 p-q</strong>：设 <code>s = p-q</code>，则 <code>(p+q)² = (p-q)² + 4pq = s² + 4n</code>，开方得 p+q。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> solve_pq_from_sum(n, s):          <span class="cm"># s = p + q</span>
+    D = s * s - <span class="nm">4</span> * n
+    r = isqrt(D)
+    <span class="kw">assert</span> r * r == D
+    <span class="kw">return</span> (s + r) // <span class="nm">2</span>, (s - r) // <span class="nm">2</span></code></pre></div>
+<h3 id="sec-49" class="hd hd-2">6.11 e 与 φ(n) 不互质（AMM 攻击）</h3>
+<p><strong>场景</strong>：<code>gcd(e, φ(n)) = t ＞ 1</code>，e 在模 φ(n) 下不可逆。</p>
+<p>若 t 很小且 <code>gcd(t, φ(n)/t) = 1</code>，可用 <strong>Adleman-Manders-Miller (AMM)</strong> 算法求 t 次剩余根。当 <code>gcd(t, (p-1)(q-1))</code> 较大时，可先分解 n 再分别在模 p、模 q 下求 t 次根，最后 CRT 合并。</p>
+<blockquote class="callout">这类题较少见，但一旦出现就是"送分"——因为多数选手只会用标准 <code>d = inv(e, phi)</code>，遇到不互质就卡住。</blockquote>
+<h3 id="sec-50" class="hd hd-2">6.12 Coppersmith 攻击（部分信息恢复）</h3>
+<p>Coppersmith 方法是格密码在 RSA 中的高阶应用，<strong>核心能力</strong>：当多项式的根足够小，且模数中存在未知但部分的因子时，可在多项式时间内找到小根。</p>
+<p><strong>典型场景</strong>：</p>
+<ol>
+<li><strong>已知 p 的高位</strong>（如给出 p 的前 512 bit 中的高位部分）：构造多项式 <code>f(x) = p_high + x ≡ 0 (mod p)</code>，用 <code>small_roots</code> 找回低位。</li>
+<li><strong>已知 p 的低位</strong>。</li>
+<li><strong>小 e + 部分明文</strong>（Stereotyped message）：<code>m = m0 + x</code>，求 x。</li>
+<li><strong>相关消息攻击</strong>：两条明文只差几个字节。</li>
+</ol>
+<p><strong>SageMath 示例</strong>（已知 p 高位）：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">sage</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">n = ...   <span class="cm"># 模数</span>
+phigh = ...  <span class="cm"># p 的高位部分（已知）</span>
+ZmodN = <span class="kw">Zmod</span>(n)
+<span class="kw">R</span>.&lt;<span class="kw">x</span>&gt; = <span class="kw">PolynomialRing</span>(ZmodN)
+f = phigh * <span class="nm">2</span>^<span class="nm">512</span> + <span class="kw">x</span>        <span class="cm"># p = phigh&lt;&lt;<span class="nm">512</span> + <span class="kw">x</span>, <span class="kw">x</span> 是未知的 512bit</span>
+f = f.monic()
+x0 = f.<span class="kw">small_roots</span>(X=<span class="nm">2</span>^<span class="nm">512</span>, beta=<span class="nm">0</span>.<span class="nm">4</span>)[<span class="nm">0</span>]
+p = <span class="kw">int</span>(phigh * <span class="nm">2</span>^<span class="nm">512</span> + x0)
+q = n // p</code></pre></div>
+<blockquote class="callout">Coppersmith 的理论基础是 LLL 格约减，将在第九章详细讲解。这里先记住<strong>使用模式</strong>：构造一个在模未知因子 p 下有小根的多项式，交给 Sage 的 <code>small_roots</code>。</blockquote>
+<h3 id="sec-51" class="hd hd-2">6.12b Franklin-Reiter 相关消息攻击</h3>
+<p><strong>场景</strong>：同一模数 n、同一指数 e，加密了两条<strong>存在已知线性关系</strong>的明文，如 <code>m2 = a·m1 + b</code>（b 已知）。</p>
+<p><strong>原理</strong>：构造两个多项式</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">g1(x) = x^e - c1
+g2(x) = (a·x + b)^e - c2</code></pre></div>
+<p>它们有公共根 <code>x = m1</code>。计算 <code>gcd(g1, g2)</code>（在 <code>Z_n[x]</code> 上用多项式欧几里得算法），结果通常是一次多项式 <code>x - m1</code>，其根即明文。当 e 很小（如 e=3、5）时计算可行。</p>
+<p><strong>SageMath 实现</strong>：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">sage</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">R</span>.&lt;<span class="kw">x</span>&gt; = <span class="kw">PolynomialRing</span>(<span class="kw">Zmod</span>(n))
+g1 = <span class="kw">x</span>^e - c1
+g2 = (a*<span class="kw">x</span> + b)^e - c2
+g = <span class="kw">gcd</span>(g1, g2)
+m1 = -g[<span class="nm">0</span>] / g[<span class="nm">1</span>]          <span class="cm"># g = <span class="kw">x</span> - m1 ⇒ 根 = -常数项/一次项</span>
+<span class="kw">print</span>(long_to_bytes(<span class="kw">int</span>(m1)))</code></pre></div>
+<blockquote class="callout"><strong>对比记忆</strong>：Coppersmith 处理"明文的<strong>部分</strong>未知"；Franklin-Reiter 处理"两条明文的<strong>关系</strong>已知"。两者都把问题转化为多项式求根，只是前者用 LLL、后者用多项式 gcd。</blockquote>
+<h3 id="sec-52" class="hd hd-2">6.12c 已知相关明文的高位攻击</h3>
+<p>若只知道 m1 的高位（如 flag 的前缀 <code>flag{</code>），而 <code>m2 = m1 + delta</code>（delta 小且已知），可结合 Coppersmith 对 <code>g(x) = (m1_high + x + delta)^e - c2</code> 求小根，直接恢复低位。这是 Franklin-Reiter 与 Coppersmith 的组合技，在高指数题中偶尔出现。</p>
+<h3 id="sec-53" class="hd hd-2">6.13 多素数 RSA 与其他变体</h3>
+<p><strong>多素数 RSA</strong>：<code>n = p1·p2·...·pk</code>，<code>φ(n) = ∏(pi - 1)</code>。若给出所有因子，正常计算即可。</p>
+<p><strong>n 是质数</strong>：若 n 本身是质数，则 <code>φ(n) = n - 1</code>，<code>d = inv(e, n-1)</code>。</p>
+<p><strong>e 很大或很小</strong>：先检查 n 是否可直接分解，再判断是否属于上述某类攻击。</p>
+<h3 id="sec-54" class="hd hd-2">6.14 RSA 解题标准流程（SOP）</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">1. 观察参数：n 的大小、e 的值、是否给了额外信息（dp/dq/phi/p+q/多个密文）
+2. e=1？→ 直接读
+3. m 可能很小？→ 尝试开根
+4. 有多个 n / 多个 e / 多个 c？→ 共模 / 广播 / 共享因子
+5. 有 dp/dq/phi/p+q？→ 对应公式推导 p、q
+6. 尝试分解 n：factordb → 试除 → Fermat → Pollard → yafu
+7. 分解成功 → 计算 d → 解密
+8. 仍失败 → 考虑 Wiener（d 小）、Coppersmith（部分信息）、AMM（不互质）
+9. 解密后注意：可能还要 base64/hex 转换，或处理 padding</code></pre></div>
+<h3 id="sec-55" class="hd hd-2">6.15 综合例题</h3>
+<p><strong>题目</strong>：给出 <code>n, e=65537, c</code>，以及 <code>dp</code>（泄露）。</p>
+<p><strong>解题</strong>：</p>
+<ol>
+<li>用 6.9 的 <code>attack_dp</code> 枚举 k 找到 p。</li>
+<li><code>q = n // p</code>。</li>
+<li><code>phi = (p-1)(q-1)</code>，<code>d = inv(e, phi)</code>。</li>
+<li><code>m = pow(c, d, n)</code>，<code>long_to_bytes(m)</code> 得到 flag。</li>
+</ol>
+<p>完整脚本：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> Crypto.Util.number <span class="kw">import</span> long_to_bytes, <span class="kw">inverse</span>
+
+<span class="kw">def</span> solve(n, e, dp, c):
+    <span class="kw">for</span> k <span class="kw">in</span> <span class="kw">range</span>(<span class="nm">1</span>, e):
+        <span class="kw">if</span> (e * dp - <span class="nm">1</span>) % k == <span class="nm">0</span>:
+            p = (e * dp - <span class="nm">1</span>) // k + <span class="nm">1</span>
+            <span class="kw">if</span> n % p == <span class="nm">0</span>:
+                q = n // p
+                d = <span class="kw">inverse</span>(e, (p - <span class="nm">1</span>) * (q - <span class="nm">1</span>))
+                <span class="kw">return</span> long_to_bytes(<span class="kw">pow</span>(c, d, n))
+    <span class="kw">return</span> <span class="kw">None</span></code></pre></div>
+<h2 id="sec-56" class="hd hd-1">第七章 离散对数与椭圆曲线</h2>
+<h3 id="sec-57" class="hd hd-2">7.1 离散对数问题（DLP）</h3>
+<p>在乘法群 <code>Z_p*</code> 中，给定 g（生成元）和 h，求 x 使 <code>g^x ≡ h (mod p)</code>。当 p 很大且 p-1 含大质因子时，DLP 是困难问题。</p>
+<p><strong>中小规模求解方法</strong>：</p>
+<div class='table-wrap'><table><thead><tr><th>方法</th><th>复杂度</th><th>适用场景</th></tr></thead><tbody>
+<tr><td>暴力枚举</td><td>O(p)</td><td>p 很小</td></tr>
+<tr><td>Baby-Step Giant-Step (BSGS)</td><td>O(√p)</td><td>p 到 2^40 左右</td></tr>
+<tr><td>Pollard's rho</td><td>O(√p)</td><td>同 BSGS，内存更小</td></tr>
+<tr><td>Pohlig-Hellman</td><td>O(√最大质因子)</td><td>p-1 是光滑数</td></tr>
+</tbody></table></div>
+<p><strong>BSGS 实现</strong>：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> math <span class="kw">import</span> isqrt
+
+<span class="kw">def</span> bsgs(g, h, p):
+    m = isqrt(p) + <span class="nm">1</span>
+    table = {}
+    e = <span class="nm">1</span>
+    <span class="kw">for</span> j <span class="kw">in</span> <span class="kw">range</span>(m):                 <span class="cm"># baby steps: g^j</span>
+        table.setdefault(e, j)
+        e = e * g % p
+    factor = <span class="kw">pow</span>(g, -m, p)             <span class="cm"># giant step 乘数</span>
+    gamma = h
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="kw">range</span>(m + <span class="nm">1</span>):
+        <span class="kw">if</span> gamma <span class="kw">in</span> table:
+            <span class="kw">return</span> i * m + table[gamma]
+        gamma = gamma * factor % p
+    <span class="kw">return</span> <span class="kw">None</span></code></pre></div>
+<blockquote class="callout"><strong>Pohlig-Hellman 要点</strong>：若 <code>p-1 = ∏ q_i^e_i</code> 且各 q_i 都小，可分别在模 q_i^e_i 的子群中求 x，再用 CRT 合并。因此出题人若选了光滑的 p-1，DLP 瞬间可破。</blockquote>
+<h3 id="sec-58" class="hd hd-2">7.2 Diffie-Hellman 密钥交换</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">双方共享 g、p
+Alice 选私钥 a，发 A = g^a mod p
+Bob 选私钥 b，发 B = g^b mod p
+共享密钥 = g^(ab) mod p</code></pre></div>
+<p>中间人攻击：若没有身份认证，攻击者可分别与 Alice、Bob 建立密钥，冒充对方。</p>
+<h3 id="sec-59" class="hd hd-2">7.3 椭圆曲线密码学（ECC）</h3>
+<p><strong>椭圆曲线</strong>（Weierstrass 形式）：<code>y² = x³ + ax + b (mod p)</code>，点集构成阿贝尔群，含无穷远点 O。</p>
+<p><strong>点加与点乘</strong>：</p>
+<ul>
+<li>点加 <code>P + Q</code>：过 P、Q 的直线与曲线的第三个交点的关于 x 轴对称点。</li>
+<li>点乘 <code>kP</code>：k 个点相加，用倍点-加法优化。</li>
+</ul>
+<p><strong>ECDLP</strong>：给定 P、Q=kP，求 k。比乘法群 DLP 更难（无亚指数算法），这是 ECC 安全性的基础。</p>
+<p><strong>常见曲线参数</strong>：secp256k1（比特币）、NIST P-256、Curve25519（Edwards 曲线）。</p>
+<h3 id="sec-60" class="hd hd-2">7.4 ECC 在 CTF 中的攻击点</h3>
+<ol>
+<li><strong>参数选择不当</strong>：曲线阶 #E 光滑 → Pohlig-Hellman 可破 ECDLP。</li>
+<li><strong>小阶曲线 / 异常曲线</strong>：Smart 攻击（#E = p 时）。</li>
+<li><strong>私钥过小</strong>：BSGS 可破。</li>
+<li><strong>随机数复用</strong>：ECDSA 签名中两次用同一 k，可直接解出私钥。</li>
+<li><strong>短曲线 / 自定义弱曲线</strong>：用 Sage 直接算离散对数。</li>
+</ol>
+<p><strong>ECDSA 随机数复用攻击</strong>：</p>
+<p>两次签名 <code>(r1,s1)</code>、<code>(r2,s2)</code> 使用同一随机数 k，对消息哈希 z1、z2：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">s1 = k^-1(z1 + r·d),  s2 = k^-1(z2 + r·d)
+两式相减：s1 - s2 = k^-1(z1 - z2)  →  k = (z1 - z2)/(s1 - s2)
+再由 d = (s1·k - z1)/r 得私钥</code></pre></div>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> ecdsa_reuse(z1, z2, r, s1, s2, n):
+    k = (z1 - z2) * <span class="kw">pow</span>(s1 - s2, -<span class="nm">1</span>, n) % n
+    d = (s1 * k - z1) * <span class="kw">pow</span>(r, -<span class="nm">1</span>, n) % n
+    <span class="kw">return</span> d</code></pre></div>
+<h3 id="sec-61" class="hd hd-2">7.5 本节小结</h3>
+<p>离散对数与 ECC 题目的破绽几乎都在<strong>参数/实现</strong>而非数学难题本身：光滑的阶、复用的随机数、过小的私钥。解题时优先检查这些"人为失误"。</p>
+<h2 id="sec-62" class="hd hd-1">第八章 伪随机数与流密码攻击</h2>
+<h3 id="sec-63" class="hd hd-2">8.1 伪随机数生成器（PRNG）</h3>
+<p>许多 Crypto 漏洞源于"用可预测的随机数做密钥"。常见 PRNG：</p>
+<ul>
+<li><strong>LCG（线性同余生成器）</strong>：<code>s_{i+1} = (a·s_i + c) mod m</code>。</li>
+<li><strong>MT19937</strong>（Mersenne Twister）：Python <code>random</code> 模块的底层算法。</li>
+</ul>
+<h3 id="sec-64" class="hd hd-2">8.2 LCG 攻击</h3>
+<p>若已知 LCG 的参数 a、c、m（或能推导），给定连续输出可预测后续；若参数未知，可列方程组用格或代数方法求解。</p>
+<p><strong>已知 a、c、m，预测下一个</strong>：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> lcg_next(s, a, c, m):
+    <span class="kw">return</span> (a * s + c) % m</code></pre></div>
+<p>若只知输出序列且 m 已知，可用差分消元：<code>s_{i+1} - s_i = a(s_i - s_{i-1})</code>，从而 <code>a = (s2-s1)/(s1-s0) mod m</code>（需可逆）。</p>
+<p><strong>截断输出（Truncated LCG）</strong>：若每次只泄露输出的高位（如 <code>s_i</code> 右移 k 位），不能直接套用差分消元。此时把未知低位作为小误差，构造格并用 LLL 求解——这是第九章 HNP 的经典应用。设每次输出 <code>y_i</code> 是 <code>s_i</code> 的高位，则真实状态 <code>s_i = y_i·2^k + e_i</code>（<code>e_i</code> 满足 <code>0 ≤ e_i ＜ 2^k</code>），代入递推式构造关于 <code>e_i</code> 的线性同余方程组，用 LLL 找小解即可恢复种子。</p>
+<h3 id="sec-65" class="hd hd-2">8.2b 种子空间爆破</h3>
+<p>很多题目直接用 <code>random.seed(m)</code>，其中 m 是时间戳、进程 PID 或小范围整数。此时最强的攻击往往不是数学，而是<strong>爆破种子</strong>：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> random, time
+target = <span class="nm">12345678</span>                      <span class="cm"># 题目给出的某个输出</span>
+now = <span class="kw">int</span>(time.time())
+<span class="kw">for</span> seed <span class="kw">in</span> <span class="kw">range</span>(now - <span class="nm">100000</span>, now + <span class="nm">100000</span>):
+    r = random.Random(seed)
+    <span class="kw">if</span> r.getrandbits(<span class="nm">32</span>) == target:
+        <span class="kw">print</span>(<span class="st">"seed ="</span>, seed)
+        <span class="kw">break</span></code></pre></div>
+<blockquote class="callout"><strong>经验</strong>：看到时间戳种子，先在题面给出的时间点附近 ±10^5 秒内搜索；看到 32 位种子且已知多个输出，优先考虑 randcrack 而非爆破。</blockquote>
+<h3 id="sec-66" class="hd hd-2">8.3 MT19937 状态恢复</h3>
+<p>Python 的 <code>random.getrandbits(32)</code> 直接输出 MT19937 的状态经过 tempering 的值。<strong>收集连续 624 个 32 位输出，即可逆 tempering 恢复全部内部状态，预测后续所有输出</strong>。工具 <code>randcrack</code> 可一键实现。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="cm"># pip install randcrack</span>
+<span class="kw">from</span> randcrack <span class="kw">import</span> RandCrack
+rc = RandCrack()
+<span class="kw">for</span> _ <span class="kw">in</span> <span class="kw">range</span>(<span class="nm">624</span>):
+    rc.submit(random.getrandbits(<span class="nm">32</span>))
+<span class="kw">print</span>(rc.predict_getrandbits(<span class="nm">32</span>))   <span class="cm"># 完美预测下一次输出</span></code></pre></div>
+<blockquote class="callout"><strong>CTF 套路</strong>：用 <code>random.seed(时间戳)</code> 生成密钥 → 种子空间小，可爆破时间戳。或用 <code>random</code> 生成 nonce 但泄露了部分输出 → randcrack 恢复。</blockquote>
+<h3 id="sec-67" class="hd hd-2">8.4 本节小结</h3>
+<ul>
+<li>看到 <code>random</code>、<code>randint</code>、<code>getRandom</code> 等，警觉种子是否可预测（时间戳、PID、固定值）。</li>
+<li>Python 的 <code>random</code> <strong>不是密码学安全</strong>的，密钥、nonce 应使用 <code>secrets</code> 或 <code>os.urandom</code>。</li>
+<li>泄露足够多的输出 ⇒ 恢复 PRNG 状态 ⇒ 预测密钥/随机数。</li>
+</ul>
+<h2 id="sec-68" class="hd hd-1">第九章 格密码入门</h2>
+<p>格密码是近十年 CTF 高阶题的核心工具。它对很多"看起来无解"的问题（小根、部分信息、隐藏数）有奇效。</p>
+<h3 id="sec-69" class="hd hd-2">9.1 格的基本概念</h3>
+<p><strong>格（Lattice）</strong>：n 维空间中，给定一组线性无关的基向量 <code>b1,...,bn</code>，其所有整系数线性组合 <code>Σ z_i·b_i (z_i∈Z)</code> 构成的集合称为格。</p>
+<p><strong>格的两个困难问题</strong>：</p>
+<ul>
+<li><strong>SVP（最短向量问题）</strong>：找格中最短的非零向量。</li>
+<li><strong>CVP（最近向量问题）</strong>：找离给定目标点最近的格点。</li>
+</ul>
+<h3 id="sec-70" class="hd hd-2">9.2 LLL 算法</h3>
+<p>LLL（Lenstra–Lenstra–Lovász）算法可在多项式时间内把一组基约减为"较短且近似正交"的基，从而近似求解 SVP。它是格攻击的核心引擎，SageMath 和 <code>fpylll</code> 都提供实现。</p>
+<p><strong>SageMath 中使用 LLL</strong>：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">sage</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">B = Matrix(ZZ, [[...], [...], [...]])   <span class="cm"># 构造格基</span>
+B_reduced = B.LLL()                      <span class="cm"># LLL 约减</span></code></pre></div>
+<h3 id="sec-71" class="hd hd-2">9.3 用 LLL 解线性方程组（隐藏数）</h3>
+<p>一类经典题型：给出 <code>y_i = (a·x_i + b_i) mod m</code>（近似线性关系），已知 y_i、x_i，求 a、b。可构造格并用 LLL 恢复。</p>
+<h3 id="sec-72" class="hd hd-2">9.4 背包密码（Merkle-Hellman）</h3>
+<p><strong>背包问题</strong>：给定重量集合 <code>a1,...,an</code> 和目标 s，求子集使其和为 s（NP 完全）。Merkle-Hellman 用"超递增序列"做私钥，用模乘混淆做公钥。</p>
+<p><strong>低密度攻击（low-density）</strong>：当背包密度较低时，可用 LLL 把公钥转化为超递增序列，从而破解。Sage 的 <code>fpylll</code> 可直接解子集和。</p>
+<h3 id="sec-73" class="hd hd-2">9.5 隐藏数问题（HNP）</h3>
+<p><strong>场景</strong>：密钥 x，多个近似线性样本 <code>y_i = (a_i·x + e_i) mod m</code>，其中 e_i 是小误差。用 LLL/CVP 恢复 x。这类问题在 DSA/ECDSA 部分随机数泄露、带噪声的 LCG 中常见。</p>
+<h3 id="sec-74" class="hd hd-2">9.6 Coppersmith 与格</h3>
+<p>第六章的 Coppersmith 方法本质上就是把"找小根"转化为"在格中找短向量"，再用 LLL 求解。Sage 的 <code>small_roots</code> 已经封装了这套流程。</p>
+<blockquote class="callout"><strong>学习建议</strong>：格密码的理论较深，CTF 中更强调"会构造格、会调用 LLL"。建议从"用 LLL 解简单线性同余"入手，再逐步学习 Coppersmith 的格构造。参考 <code>LLL</code> 相关的 CTF writeup。</blockquote>
+<h2 id="sec-75" class="hd hd-1">第十章 侧信道与综合题型</h2>
+<h3 id="sec-76" class="hd hd-2">10.1 侧信道攻击简介</h3>
+<p>侧信道攻击不直接攻击算法数学结构，而是利用实现过程中的物理/时间信息泄漏：</p>
+<ul>
+<li><strong>计时攻击（Timing）</strong>：通过运算时间差异推断密钥（如 RSA 的平方-乘算法）。</li>
+<li><strong>功耗分析（SPA/DPA）</strong>：通过功耗曲线推断密钥（硬件场景）。</li>
+<li><strong>错误注入（Fault）</strong>：诱导计算出错，利用错误结果分解 n（RSA 的 Bellcore 攻击）。</li>
+</ul>
+<h3 id="sec-77" class="hd hd-2">10.2 综合题型解题心法</h3>
+<p>CTF 的 Crypto 题常常是多个知识点的组合。解题时遵循：</p>
+<ol>
+<li><strong>观察</strong>：拿到题目先看清输入、输出、加密流程、给了哪些参数。</li>
+<li><strong>分类</strong>：判断属于对称、哈希、公钥还是格密码；是算法问题还是实现问题。</li>
+<li><strong>找破绽</strong>：对比标准算法，找出被削弱的环节（小参数、泄露信息、错误用法）。</li>
+<li><strong>验证</strong>：写脚本复现攻击，用小数据验证思路。</li>
+<li><strong>工程化</strong>：处理编码、padding、数据格式，提取 flag。</li>
+</ol>
+<h3 id="sec-78" class="hd hd-2">10.3 常见易错点</h3>
+<ul>
+<li>大数转换：<code>int</code> ↔ <code>bytes</code> 的大端/小端、字节序（<code>libnum</code> 的 <code>s2n</code>/<code>n2s</code>）。</li>
+<li>Python 2/3 的整数除法差异（<code>/</code> vs <code>//</code>）。</li>
+<li>负数取模：<code>(-1) % n</code> 在 Python 中返回 <code>n-1</code>（正确），在 C 中为负。</li>
+<li>密文/明文可能是 hex、base64、可见字符，需先转换。</li>
+</ul>
+<h2 id="sec-79" class="hd hd-1">第十一章 工具、资源与学习建议</h2>
+<h3 id="sec-80" class="hd hd-2">11.1 解题工具清单</h3>
+<div class='table-wrap'><table><thead><tr><th>类别</th><th>工具</th></tr></thead><tbody>
+<tr><td>编码</td><td>CyberChef、ciphey、Base 全家桶</td></tr>
+<tr><td>数学计算</td><td>SageMath、gmpy2、sympy、Wolfram Alpha</td></tr>
+<tr><td>因式分解</td><td>factordb、yafu、msieve、Pollard rho</td></tr>
+<tr><td>密码原语</td><td>pycryptodome、Crypto.Util.number</td></tr>
+<tr><td>格密码</td><td>Sage <code>small_roots</code>、fpylll、olll</td></tr>
+<tr><td>爆破</td><td>hashcat、john、在线爆破</td></tr>
+<tr><td>交流学习</td><td>CTFtime、各战队 writeup、BuuCTF、NSSCTF</td></tr>
+</tbody></table></div>
+<h3 id="sec-81" class="hd hd-2">11.2 推荐练习平台</h3>
+<ul>
+<li><strong>BuuCTF / NSSCTF</strong>：国内入门到进阶的 Crypto 题库。</li>
+<li><strong>CTFtime / picoCTF / cryptohack</strong>：国际平台，CryptoHack 尤其系统。</li>
+<li><strong>Hackergame / 强网杯 / XCTF</strong>：国内高质量赛事。</li>
+</ul>
+<h3 id="sec-82" class="hd hd-2">11.3 学习建议</h3>
+<ol>
+<li><strong>数学先行</strong>：数论是根，先补模运算、群论、线性代数。</li>
+<li><strong>多复现</strong>：看懂 writeup 不算掌握，亲手把攻击脚本跑通才是。</li>
+<li><strong>建仓库</strong>：把自己的攻击脚本整理成模板库（RSA 各攻击、BSGS、LLL 等），实战时直接调用。</li>
+<li><strong>跟前沿</strong>：格密码、后量子密码是热点，关注最近赛事的新题型。</li>
+</ol>
+<h2 id="sec-83" class="hd hd-1">第十二章 有限域与代数进阶</h2>
+<p>前面章节我们主要在模素数域 <code>Z_p</code> 上运算。要真正理解 AES 的 S 盒、椭圆曲线的坐标运算、以及 Reed-Solomon 等编码，需要把"域"的概念推广到<strong>有限域（Galois Field）</strong>。</p>
+<h3 id="sec-84" class="hd hd-2">12.1 群、环、域的基本概念</h3>
+<ul>
+<li><strong>群（Group）</strong>：一个集合 G 与一个运算 <code>·</code>，满足封闭性、结合律、存在单位元、每个元素有逆元。若再满足交换律则为阿贝尔群。</li>
+<li><strong>环（Ring）</strong>：在群的基础上，同时定义了加法和乘法，加法成阿贝尔群，乘法满足结合律并对加法有分配律（乘法不一定有逆元）。整数模 n 的集合 <code>Z_n</code> 是环。</li>
+<li><strong>域（Field）</strong>：一个环，其中<strong>每个非零元素都有乘法逆元</strong>。<code>Z_p</code>（p 为素数）是域；<code>Z_n</code>（n 合数）只是环，因为存在与 n 不互质的元素无逆元。</li>
+</ul>
+<blockquote class="callout"><strong>为什么 RSA 用环、ECC 用域？</strong> RSA 在 <code>Z_n</code>（n=pq 合数）上运算，正是利用"合数环中求逆/分解困难"；ECC 在有限域 <code>F_p</code> 上定义曲线，保证每个非零坐标可逆、群结构良好。</blockquote>
+<h3 id="sec-85" class="hd hd-2">12.2 有限域 GF(p) 与 GF(2^n)</h3>
+<p>有限域的元素个数一定是素数幂，记作 <code>GF(p^k)</code>：</p>
+<ul>
+<li><code>GF(p)</code>：模素数 p 的整数域，即前面用的 <code>Z_p</code>。</li>
+<li><code>GF(2^n)</code>：含 2^n 个元素的域，元素可看作次数小于 n 的二进制多项式，运算<strong>模一个 n 次不可约多项式</strong>。</li>
+</ul>
+<p><strong>GF(2^8) 在 AES 中的角色</strong>：AES 的字节运算全部在 <code>GF(2^8)</code> 上进行，模的不可约多项式是</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">m(x) = x^8 + x^4 + x^3 + x + 1      (0x11B)</code></pre></div>
+<p><strong>GF(2) 上的加减法 = 异或</strong>：因为系数为 0/1，<code>1+1=0 (mod 2)</code>，所以两个多项式相加就是逐位异或。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> gf_mul(a, b, mod=0x11B):
+    <span class="st">""</span><span class="st">"GF(2^8) 乘法（俄罗斯 peasant 算法）"</span><span class="st">""</span>
+    res = <span class="nm">0</span>
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="kw">range</span>(<span class="nm">8</span>):
+        <span class="kw">if</span> b &amp; <span class="nm">1</span>:
+            res ^= a
+        hi = a &amp; 0x80          <span class="cm"># 检查最高位，决定是否约减</span>
+        a = (a &lt;&lt; <span class="nm">1</span>) &amp; 0xFF
+        <span class="kw">if</span> hi:
+            a ^= mod
+        b &gt;&gt;= <span class="nm">1</span>
+    <span class="kw">return</span> res</code></pre></div>
+<h3 id="sec-86" class="hd hd-2">12.3 多项式环与不可约多项式</h3>
+<p>在 <code>GF(p)[x]</code>（系数取自 GF(p) 的多项式环）中：</p>
+<ul>
+<li><strong>不可约多项式</strong>：不能分解为两个次数更低的多项式之积，类比整数中的素数。</li>
+<li>给定不可约多项式 <code>f(x)</code> 的次数 n，商环 <code>GF(p)[x]/(f(x))</code> 构成含 <code>p^n</code> 个元素的有限域。</li>
+</ul>
+<p>求逆元可用扩展欧几里得的多项式版本：找 <code>u(x), v(x)</code> 使 <code>a(x)u(x) + f(x)v(x) = 1</code>，则 <code>a(x)^-1 = u(x) mod f(x)</code>。</p>
+<h3 id="sec-87" class="hd hd-2">12.4 AES S 盒的数学构造</h3>
+<p>AES 的 S 盒并非随机表，而是两步复合：</p>
+<ol>
+<li><strong>求逆</strong>：在 <code>GF(2^8)</code> 中取 <code>x^-1</code>（0 映射到 0）。</li>
+<li><strong>仿射变换</strong>：<code>b'_i = b_i ⊕ b_{(i+4)mod8} ⊕ b_{(i+5)mod8} ⊕ b_{(i+6)mod8} ⊕ b_{(i+7)mod8} ⊕ c_i</code>。</li>
+</ol>
+<p>这种构造保证了 S 盒具有优良的<strong>非线性度</strong>和<strong>差分均匀性</strong>，能抵抗线性/差分密码分析。CTF 中若遇到"自定义 S 盒"，往往是把它换成线性或弱非线性的版本，从而可用代数方法直接解线性方程组还原密钥。</p>
+<h3 id="sec-88" class="hd hd-2">12.5 有限域上的离散对数</h3>
+<p><code>GF(2^n)</code> 上的离散对数比 <code>GF(p)</code> 更容易（存在 Index Calculus 的高效推广），因此 ECC 一般不用 <code>GF(2^n)</code> 上的"超奇异曲线"——MOV 攻击可把 ECDLP 约化到 <code>GF(2^{kn})</code> 上的有限域 DLP，从而被快速求解。这是第七章"可疑曲线"攻击的理论根源。</p>
+<h2 id="sec-89" class="hd hd-1">第十三章 后量子密码学简介</h2>
+<p>随着量子计算的发展，Shor 算法能在多项式时间内分解大整数、求离散对数，这意味着 <strong>RSA、DH、ECC 在大规模量子计算机面前都不安全</strong>。CTF 中近年开始出现"后量子（Post-Quantum）"相关题目，本章做科普性介绍。</p>
+<h3 id="sec-90" class="hd hd-2">13.1 量子计算对密码学的威胁</h3>
+<ul>
+<li><strong>Shor 算法</strong>：多项式时间解决整数分解与离散对数 → 摧毁 RSA / DH / ECC。</li>
+<li><strong>Grover 算法</strong>：把暴力搜索从 O(N) 降到 O(√N) → 使对称密钥/哈希的有效安全强度减半（AES-256 仍安全，AES-128 降到 64 bit）。</li>
+</ul>
+<blockquote class="callout">CTF 里的"量子题"通常只是概念性的——给你一个 Grover 加速的比喻，或让你理解"为什么格问题抗量子"，很少真的要求写量子线路。</blockquote>
+<h3 id="sec-91" class="hd hd-2">13.2 后量子密码的四大方向</h3>
+<div class='table-wrap'><table><thead><tr><th>方向</th><th>代表算法</th><th>困难问题</th></tr></thead><tbody>
+<tr><td>格密码（Lattice）</td><td>Kyber（KEM）、Dilithium（签名）</td><td>Module-LWE / Module-SIS</td></tr>
+<tr><td>编码密码（Code-based）</td><td>Classic McEliece</td><td>一般线性码译码</td></tr>
+<tr><td>哈希签名（Hash-based）</td><td>SPHINCS+</td><td>哈希函数的抗碰撞性</td></tr>
+<tr><td>多元多项式（Multivariate）</td><td>Rainbow（已部分被破）</td><td>多元二次方程组求解</td></tr>
+</tbody></table></div>
+<p><strong>NIST 标准化进程</strong>：2022 年 NIST 选定 CRYSTALS-Kyber 作为公钥加密/KEM 标准，CRYSTALS-Dilithium 作为数字签名标准，并选定 SPHINCS+ 作为哈希签名标准。这标志着格密码正式成为主流。</p>
+<h3 id="sec-92" class="hd hd-2">13.3 LWE 问题：格密码的核心</h3>
+<p><strong>LWE（Learning With Errors）问题</strong>：给定若干"带噪声的线性方程"</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">b_i = &lt;a_i, s&gt; + e_i  (mod q)</code></pre></div>
+<p>其中 <code>a_i</code> 随机、<code>e_i</code> 是小噪声、<code>s</code> 是秘密向量。即使知道所有 <code>(a_i, b_i)</code>，恢复 s 也很困难——噪声让高斯消元失效，而这个问题被认为抗量子。</p>
+<p>这正是第九章"隐藏数问题（HNP）"的一般化形式，也是为什么<strong>格密码既是 CTF 高阶考点，又是密码学前沿</strong>。</p>
+<h3 id="sec-93" class="hd hd-2">13.4 CTF 中的后量子题目形态</h3>
+<ol>
+<li><strong>简单的 LWE 参数</strong>：噪声太小或样本太多 → 用 LLL 直接解。</li>
+<li><strong>NTRU 类问题</strong>：基于格上的最短向量，参数选弱时可破。</li>
+<li><strong>概念问答</strong>：判断哪个算法抗量子、解释 Shor/Grover 的影响。</li>
+</ol>
+<p>解题核心仍是第九章的 LLL 工具，只是问题包装成了"后量子"的外衣。</p>
+<h2 id="sec-94" class="hd hd-1">第十四章 CTF Crypto 答题思维速查</h2>
+<h3 id="sec-95" class="hd hd-2">14.1 从"题目长什么样"到"用什么攻击"</h3>
+<p>拿到一道 Crypto 题，可按下面的特征映射快速定位攻击方法：</p>
+<div class='table-wrap'><table><thead><tr><th>你看到的</th><th>大概率是</th><th>跳转章节</th></tr></thead><tbody>
+<tr><td>一串像 Base64 但解不开</td><td>多层编码 / 自定义字符表</td><td>第三章</td></tr>
+<tr><td>给了加密脚本，异或为主</td><td>密钥重用 / 已知明文</td><td>4.2</td></tr>
+<tr><td>相同的密文块重复出现</td><td>ECB 模式</td><td>4.3</td></tr>
+<tr><td>服务端报 padding 错误</td><td>Padding Oracle</td><td>4.4</td></tr>
+<tr><td>RSA 给了 dp 或 dq</td><td>dp/dq 泄露攻击</td><td>6.9</td></tr>
+<tr><td>RSA 的 e 特别大（本质是 d 很小，e 大只是信号）</td><td>Wiener 低解密指数</td><td>6.8</td></tr>
+<tr><td>多个 n、同一明文</td><td>共模 / 广播攻击</td><td>6.5/6.6</td></tr>
+<tr><td>多个 n 有公共因子</td><td>共享素因子</td><td>6.7</td></tr>
+<tr><td>知道 p 的高位/低位</td><td>Coppersmith</td><td>6.12</td></tr>
+<tr><td>离散对数，p-1 光滑</td><td>Pohlig-Hellman</td><td>7.1</td></tr>
+<tr><td>两次 ECDSA 签名 r 相同</td><td>随机数复用</td><td>7.4</td></tr>
+<tr><td>Python <code>random</code> 做密钥</td><td>MT19937 状态恢复</td><td>8.3</td></tr>
+<tr><td>一堆线性方程带小误差</td><td>LLL / HNP</td><td>9.5</td></tr>
+<tr><td>声称"后量子"但参数很小</td><td>LWE + LLL</td><td>13.3</td></tr>
+</tbody></table></div>
+<h3 id="sec-96" class="hd hd-2">14.2 解题的标准动作清单</h3>
+<ol>
+<li><strong>抄题</strong>：把加密脚本逐行读懂，标注每个变量的角色（公钥/私钥/随机数/明文）。</li>
+<li><strong>找弱</strong>：对比标准算法，找出被削弱的地方——小参数、泄露值、错误用法、可预测随机数。</li>
+<li><strong>建模型</strong>：把攻击目标写成数学问题（求小根、解同余、找短向量）。</li>
+<li><strong>写脚本</strong>：套用本讲义模板，先用小规模数据验证，再跑真实数据。</li>
+<li><strong>转格式</strong>：flag 常是字节串，注意 <code>long_to_bytes</code>、hex、base64 的转换。</li>
+<li><strong>查证</strong>：flag 格式通常有 <code>flag{}</code> / <code>ctf{}</code> 等前缀，拿到后检查是否符合。</li>
+</ol>
+<h3 id="sec-97" class="hd hd-2">14.3 最容易踩的坑</h3>
+<ul>
+<li><strong>编码顺序</strong>：先解码再解密，还是先解密再解码？看题目流程，顺序错了全盘皆输。</li>
+<li><strong>大小端</strong>：<code>bytes_to_long</code> 默认大端，若题目用小端需 <code>int.from_bytes(b, 'little')</code>。</li>
+<li><strong>整除与取整</strong>：<code>//</code> 与 <code>/</code>、向上取整 <code>ceil</code> 与向下取整 <code>floor</code> 在公式里含义不同。</li>
+<li><strong>负数取模</strong>：Python 的 <code>%</code> 对负数返回非负结果，与 C 不同，写跨语言脚本时注意。</li>
+<li><strong>e 与 φ 不互质</strong>：直接 <code>inverse(e, phi)</code> 会报错，需走 AMM 分支（6.11）。</li>
+</ul>
+<h3 id="sec-98" class="hd hd-2">14.4 持续精进的建议</h3>
+<ul>
+<li>每周精读 2–3 篇 writeup，重点看"作者如何从题目特征想到攻击方法"的推理链。</li>
+<li>把自己的解题脚本整理成私有模板库，按攻击类型分类，实战时直接调用。</li>
+<li>关注 CTFtime 上的高分赛事（如 Google CTF、NahamCon、Tianfu Cup），其 Crypto 题往往代表最新趋势。</li>
+<li>数学是长期投资：系统学一遍《数论导引》或《代数背景下的密码学》，会让高阶题变得豁然开朗。</li>
+</ul>
+<h2 id="sec-99" class="hd hd-1">第十五章 解题思维方法论：从拿到题到做出题</h2>
+<p>前面十四章讲的是"武器库"——每一种攻击的原理、公式和代码。但实战中更难的问题往往是：<strong>面对一道从没见过的题，我该从哪里下手？</strong> 这一章专门讲"怎么想"，也就是把题目特征转化为攻击路径的推理能力。它和第十四章互补：14 章是"看到什么用什么"的查表，本章是"为什么想到它，以及想不出来时怎么办"。</p>
+<h3 id="sec-100" class="hd hd-2">15.1 第一性原理：所有 Crypto 题都在考"偏离标准的地方"</h3>
+<p>先建立一个最重要的思维锚点：<strong>CTF 的密码题几乎不会让你去攻破一个真正安全的标准算法</strong>。AES-256、SHA-256、正确的 RSA-2048 都是打不动的。题目之所以可解，是因为出题人有意无意地引入了一个"偏离"——也就是弱点。你的任务不是"破解密码学"，而是<strong>找出这个偏离点</strong>。</p>
+<p>偏离通常只有三类，拿到题先往这三个方向套：</p>
+<div class='table-wrap'><table><thead><tr><th>偏离类型</th><th>含义</th><th>典型信号</th></tr></thead><tbody>
+<tr><td><strong>参数被削弱</strong></td><td>用了太小或太特殊的数</td><td>小 e、小 n、小素数、低位泄露、种子空间小</td></tr>
+<tr><td><strong>信息被泄露</strong></td><td>本该保密的量暴露了一部分</td><td>dp/dq、部分明文、高位、签名随机数、多个密文</td></tr>
+<tr><td><strong>用法被误用</strong></td><td>算法本身没问题，但用错了</td><td>ECB、密钥/ nonce 重用、无认证、可预测随机数、自定义实现</td></tr>
+</tbody></table></div>
+<p>这个三分法的价值在于：它把"无从下手"变成"三选一"。拿到任何一道题，先问自己：<strong>它是参数小了，是信息漏了，还是用法错了？</strong> 大概率能锁定其中一类，推理链条就活了。</p>
+<blockquote class="callout">一句话心法：<strong>不要问"怎么攻破这个算法"，要问"出题人在哪里放水了"。</strong></blockquote>
+<h3 id="sec-101" class="hd hd-2">15.2 拿到题的标准动作：先审后算</h3>
+<p>新手最常见的错误是一上来就写代码、跑工具。正确的顺序是"先审后算"，用两到三分钟把题目彻底读懂，能省下后面两小时。</p>
+<p><strong>第 1 步：通读并标注变量角色。</strong> 把加密脚本逐行读，在旁边标出每个变量是"公钥、私钥、随机数、种子、明文、密文、还是固定常量"。尤其注意：哪些量是每次运行都变化的，哪些是固定的。固定的量往往藏着后门。</p>
+<p><strong>第 2 步：还原数据流向。</strong> 用一句话说清"输入 → 经过哪些变换 → 输出"。flag 从哪里进去、以什么形式出来。如果脚本里有 <code>encrypt(flag)</code>，就顺着 <code>encrypt</code> 把每一步展开。</p>
+<p><strong>第 3 步：列出所有"已知量"和"未知量"。</strong> 已知量是你的攻击素材（公钥 n/e、密文 c、泄露的 dp、提示文本）；未知量是目标（私钥 d、明文 m、种子）。攻击的本质就是用已知量推导未知量。</p>
+<p><strong>第 4 步：找异常。</strong> 拿这段脚本和教科书上的标准实现对比，任何"多出来的""少掉的""写死的"东西都是嫌疑人：</p>
+<ul>
+<li>为什么 e 取了 3 或 65537 以外的值？</li>
+<li>为什么随机数种子用了 <code>int(time.time())</code>？</li>
+<li>为什么用了 <code>getRandomInteger(128)</code> 而不是 256？</li>
+<li>为什么同一个 nonce 用了两次？</li>
+<li>为什么有个从未使用的变量 <code>leak</code> 被打印出来？</li>
+</ul>
+<p><strong>第 5 步：定性题型，再选武器。</strong> 完成上面四步后，通常已经能回答"这是参数问题、泄露问题还是误用问题"，这时再去第十四章的映射表查具体攻击，命中率会非常高。</p>
+<h3 id="sec-102" class="hd hd-2">15.3 建立"信号 → 假设"的推理链</h3>
+<p>查表能解决"见过的题"，但真正的能力是<strong>从陌生信号推出假设</strong>。下面用几个例子示范这种推理链是怎么走的，注意其中的"因为"部分——那才是思维的骨架。</p>
+<p><strong>例 A：题目给了 n、e=3、以及 c，但 c 明显比 n 小很多。</strong> 推理链：<code>c 比 n 小</code> → 说明 <code>m^3</code> 没有发生模约减（因为如果约减了，c 会接近 n 的量级）→ 因为 <code>m^3 ＜ n</code> → 所以对 c 直接开三次整数根就能得到 m。→ 假设：小 e + 小明文，无需分解 n。验证：对 c 做整数开根，看结果 cubed 是否等于 c。</p>
+<p><strong>例 B：给了两个不同 n、但加密同一段明文，e 都是 65537。</strong> 推理链：<code>同一明文 + 不同模数 + 相同 e</code> → 这是典型的广播场景 → 因为若两个 n 互素，可由扩展欧几里得找到 <code>s·n1 + t·n2 = 1</code> → 于是 <code>m^e mod n1</code> 和 <code>m^e mod n2</code> 可用 CRT 拼出 <code>m^e mod (n1·n2)</code>，而 <code>m^e ＜ n1·n2</code> 时没有约减 → 直接开 e 次根。→ 假设：Håstad 广播攻击。验证：先确认 <code>gcd(n1,n2)=1</code>，否则是共因子攻击。</p>
+<p><strong>例 C：交互式服务每次给签名，且两次签名的 r 值相同。</strong> 推理链：<code>ECDSA 中 r = (kG).x mod n</code> → <code>r 相同</code> 强烈暗示 <code>k 相同</code>（因为 k 不同却碰撞的概率极低）→ 因为 <code>s = k⁻¹(h + d·r)</code>，两个签名共享 k 和 r 但哈希 h 不同 → 两式联立可消去 d 解出 k，再回代求 d。→ 假设：随机数 k 复用。验证：代回推导出的 d，看能否复现签名。</p>
+<p>看出规律了吗？每一步都是"<strong>观察到现象 → 依据算法内部机制解释它 → 得出一个可验证的假设 → 设计实验确认</strong>"。把它练成肌肉记忆，陌生的题也能一步步拆。</p>
+<h3 id="sec-103" class="hd hd-2">15.4 把"卡壳"变成可控流程：排查清单</h3>
+<p>做题卡住是常态。卡住时最忌讳的是"盯着屏幕发呆"或"换十几个工具乱试"。改用下面的分层排查清单，逐层确认，能定位绝大多数卡点。</p>
+<p><strong>审题层</strong></p>
+<ol>
+<li>flag 的格式要求看清了吗（<code>flag{}</code> 还是别的）？</li>
+<li>脚本有没有被我漏读的行，尤其是循环外的初始化？</li>
+<li>有没有附件、提示文本、注释里的隐藏信息？</li>
+</ol>
+<p><strong>编码层</strong></p>
+<ol>
+<li>数据到底是 hex、base64、还是字节串？解码顺序对不对？</li>
+<li>大小端搞反了吗？尝试 <code>bytes_to_long</code> 和 <code>int.from_bytes(..., 'little')</code> 两种。</li>
+<li>有没有多层编码嵌套（base64 里套 hex 里套 base32）？</li>
+</ol>
+<p><strong>数学层</strong></p>
+<ol>
+<li>参数之间有没有隐藏关系（<code>gcd(n1,n2)</code>、n 是否是完美幂、e 与 φ 是否互质）？</li>
+<li>有没有可能 n 是可分解的（小素数、p 与 q 太近、p-1 光滑）？</li>
+<li>已知量够不够？差一个量时，能不能用 Coppersmith 从部分信息补出来？</li>
+</ol>
+<p><strong>实现层</strong></p>
+<ol>
+<li>我的脚本用了小规模自测吗？公式会不会有 <code>//</code> 与 <code>/</code>、<code>ceil</code> 与 <code>floor</code> 的错误？</li>
+<li>符号约定和题目一致吗（尤其是取模、位移）？</li>
+<li>是不是工具版本问题（Sage 与 Python 的整数开根行为差异）？</li>
+</ol>
+<p>这份清单的用法是：<strong>卡住超过十分钟，就从第 1 条开始机械地过一遍</strong>，往往在第 4 或第 7 条就能发现问题。它把"灵感"变成了"流程"。</p>
+<h3 id="sec-104" class="hd hd-2">15.5 各类题型的专属思维模板</h3>
+<p>不同题型有不同的"第一反应"。下面按题型给出可以直接套用的思维链模板。</p>
+<h4 id="sec-105" class="hd hd-3">15.5.1 编码与古典密码题</h4>
+<p>思维模板：<strong>先看字符空间，再看统计特征，最后看密钥。</strong></p>
+<ul>
+<li>字符落在哪些范围？只有 A–Z 说明是古典密码；有 <code>+/=</code> 说明是 base64；有 <code>0-9A-F</code> 说明是 hex。</li>
+<li>频率分布像自然语言吗？像 → 单表替换/凯撒，直接频率分析；不像但长度短 → 可能是维吉尼亚或无规律替换。</li>
+<li>题目给了密钥或 key 流吗？给了就想异或/维吉尼亚；没给就想爆破（凯撒只有 26 种，单表可用 hill climbing）。</li>
+<li>反复解码直到"看起来像 flag"——多层编码在入门题里极常见。</li>
+</ul>
+<h4 id="sec-106" class="hd hd-3">15.5.2 对称密码与异或题</h4>
+<p>思维模板：<strong>异或找重用，分组看模式，服务端找 Oracle。</strong></p>
+<ul>
+<li>是不是多段明文用了同一个密钥/流？是 → 异或两段密文等于异或两段明文，做.crib dragging（已知明文拖拽）。</li>
+<li>密文块有没有重复？有 → ECB 模式，可做块重排。</li>
+<li>有没有一个"会告诉你对错"的接口？有 → Padding Oracle 或选择明文攻击，逐字节爆破。</li>
+<li>记住异或的核心性质：<code>A ⊕ B ⊕ B = A</code>，且 <code>c1 ⊕ c2 = m1 ⊕ m2</code>（同密钥流时）。很多"魔法"都源于这两条。</li>
+</ul>
+<h4 id="sec-107" class="hd hd-3">15.5.3 RSA 题</h4>
+<p>RSA 是思维链最丰富的题型，模板是<strong>按信息量分流</strong>：</p>
+<ul>
+<li>只给 n、e、c？→ 先查 n 能否分解（factordb、小素数、p 近 q、Fermat）。分解出 p、q 就通关。</li>
+<li>给了两个以上 n？→ 查 <code>gcd</code>，有公因子直接分解；无公因子但同明文 → 广播攻击。</li>
+<li>给了 e 特别大（接近 n）？→ Wiener 连分数攻击。</li>
+<li>给了 dp 或 dq？→ 用 <code>dp·e − 1</code> 能被 <code>p−1</code> 整除的性质爆破出 p。</li>
+<li>给了 p 的一部分（高位/低位）？→ Coppersmith 小根。</li>
+<li>给了相关明文（m 与 m+delta 都加密）？→ Franklin-Reiter 相关消息攻击。</li>
+<li>给了签名接口？→ 想 e 次根伪造、或 Bleichenbacher 低指数签名伪造。</li>
+</ul>
+<p><strong>RSA 题的第一反应永远是"我手里除了 n、e、c 还多拿到了什么"</strong>——多出来的那一样东西，就是出题人放的线索。</p>
+<h4 id="sec-108" class="hd hd-3">15.5.4 哈希题</h4>
+<p>思维模板：<strong>长度扩展看结构，碰撞看生日，MAC 看密钥。</strong></p>
+<ul>
+<li>服务端用 <code>hash(secret || data)</code> 且给出 hash 值和长度？→ Merkle-Damgård 长度扩展攻击。</li>
+<li>要求找两段不同输入同 hash？→ 生日攻击或具体算法的已知碰撞（MD5/SHA1）。</li>
+<li>用了 HMAC 或带盐？→ 标准结构通常不可破，转而找协议逻辑漏洞或弱密钥。</li>
+</ul>
+<h4 id="sec-109" class="hd hd-3">15.5.5 伪随机题</h4>
+<p>思维模板：<strong>先判生成器，再判泄露量，最后定恢复方法。</strong></p>
+<ul>
+<li><code>random.randint</code> / <code>getRandomBits</code> → 大概率 MT19937，泄露足够多的 32 位输出即可恢复状态。</li>
+<li>线性递推 <code>s_{i+1} = a·s_i + b mod m</code> → LCG，用差分消元求 a、b，或输出被截断时用 LLL。</li>
+<li>种子是时间戳/进程号 → 直接爆破种子空间。</li>
+<li>判断泄露够不够：MT19937 需要 624 个 32 位输出；LCG 已知 m 时通常几个连续输出就够。<strong>泄露量不够时，不要硬上，想想能不能拿到更多输出或缩小种子空间。</strong></li>
+</ul>
+<h4 id="sec-110" class="hd hd-3">15.5.6 格密码题</h4>
+<p>思维模板：<strong>认出"带小误差的线性/模方程"，就想到 LLL。</strong></p>
+<ul>
+<li>一堆方程 <code>a_i·x + e_i ≡ b_i mod m</code>，其中 x 或 e 很小 → HNP（隐藏数问题），构造格。</li>
+<li>背包/子集和问题 → 低密度时用 LLL 转化。</li>
+<li>已知 p 的高位 → Coppersmith（本质是格）。</li>
+<li>后量子题参数很小 → LWE 用 LLL/BKZ 解。</li>
+<li>格题的难点在<strong>构造</strong>，不在算法：先明确"未知量是谁、小量是谁、模数是谁"，再套对应格构造。卡住时回到这三问。</li>
+</ul>
+<h3 id="sec-111" class="hd hd-2">15.6 逆向思维：从出题人的意图反推</h3>
+<p>除了正向分析题目，还要学会<strong>站在出题人角度想</strong>，这常常能瞬间点破题目。</p>
+<p><strong>看题名和描述。</strong> 标题叫"baby_rsa""little e""easy_lcg"的，几乎直接告诉你考点。"baby/little/easy"意味着参数被削弱；"unknown""mystery"类题目则更可能藏了信息泄露。题目描述里反复强调"我们用了最安全的 256 位"往往是反讽，提示实际参数没那么大。</p>
+<p><strong>找"违和"的实现。</strong> 出题人要埋点，通常会在代码里留下不自然的痕迹：一个硬编码的大常数（可能是 p 的高位）、一个多余的 <code>print(leak)</code>、一个把随机数固定成 0 的调试残留。看到这类东西，第一反应是"这是故意给我的线索"，而不是"这是 bug 忽略掉"。</p>
+<p><strong>估计难度与考点数量。</strong> 入门题通常只有一个考点，找到那个异常就通关；难题往往是"两个弱点的组合"，比如"先 LCG 恢复种子，再用种子推出 RSA 的 p"。如果一个攻击做完后还有一半信息没用上，说明还有第二层——<strong>没被用到的信息就是下一步的入口</strong>。</p>
+<p><strong>问自己"如果我是出题人，我会怎么让这题可解？"</strong> 你会把哪个量设小？会泄露哪个值？会用哪种错误用法？把自己代入出题场景，往往能和出题人的设计思路对上频率。</p>
+<h3 id="sec-112" class="hd hd-2">15.7 数量级直觉：判断"这条路走得通吗"</h3>
+<p>很多失败源于选了计算上不可行的路。建立基本的数量级直觉，能及时止损：</p>
+<div class='table-wrap'><table><thead><tr><th>运算</th><th>大致可行边界</th><th>超出时的信号</th></tr></thead><tbody>
+<tr><td>试除分解 n</td><td>因子小于 10⁷ 量级</td><td>n 是两个 512 位素数 → 放弃试除</td></tr>
+<tr><td>穷举密钥空间</td><td>2⁴⁰ 以内较轻松，2⁵⁶ 吃力</td><td>256 位随机密钥 → 别爆破，找泄露</td></tr>
+<tr><td>暴力小根 Coppersmith</td><td>根小于 n^(1/e) 量级</td><td>泄露位太少 → 先想别的漏洞</td></tr>
+<tr><td>LLL 约减</td><td>格维数百以内尚可</td><td>维度上千 → 换 BKZ 或精简问题</td></tr>
+</tbody></table></div>
+<p>实操建议：<strong>动手前先估数量级</strong>。看到 n 是 2048 位，就别想着分解；看到种子是 32 位时间戳，就该高兴——那才几亿次，可以爆破。这种" Calculator before calculator（先估后算）"的习惯，是区分老手和新手的重要标志。</p>
+<h3 id="sec-113" class="hd hd-2">15.8 认知陷阱：思维层面的常见错误</h3>
+<ul>
+<li><strong>锚定效应</strong>：认定是 RSA 就只盯 RSA，忽略题目其实是编码套 RSA。对策：审完题再定性，别边看边下结论。</li>
+<li><strong>确认偏误</strong>：只做支持自己假设的实验，忽略反证。对策：主动设计一个"如果假设错了会怎样"的检验。</li>
+<li><strong>沉没成本</strong>：在一条错路上耗了两小时舍不得换。对策：设时间盒，一个假设验证 20 分钟没进展就强制换方向。</li>
+<li><strong>过度工程</strong>：写了一个通用自动攻击框架，其实题目一次异或就解开。对策：先试最简单的方法（ simplest thing that could work ），不行再升级。</li>
+<li><strong>工具依赖</strong>：只会调 <code>solve.py</code>，不懂原理，题目稍变就不会。对策：每个工具背后的数学，至少能说清"它在求什么"。</li>
+</ul>
+<h3 id="sec-114" class="hd hd-2">15.9 把思维练成习惯：训练方法</h3>
+<ol>
+<li><strong>精读 writeup 的推理链，而不是抄脚本。</strong> 读的时候盖住解法，先自己想"我会怎么做"，再看作者怎么想，对比差在哪里。差的那一点，就是你的知识盲区。</li>
+<li><strong>做"题型归类"笔记。</strong> 每做一道题，记录三行：题目表面特征、真正考点、我卡在哪一步。积累几十道后，你会发现考点的分布高度集中。</li>
+<li><strong>刻意练习"陌生信号推理"。</strong> 找没见过的题，强制自己用 15.3 的推理链写出"看到 X，因为 Y，所以假设 Z"，哪怕错了也要写，写完再验证。</li>
+<li><strong>维护个人模板库。</strong> 把调试成功的攻击脚本按类型存好，标注"适用条件"。实战时先查库，能省大量重复劳动。</li>
+<li><strong>复盘卡壳。</strong> 每次卡住后，记下"最后是怎么想通的"。如果发现是某个知识点没掌握（比如不知道 dp 攻击），就回去补那一节——<strong>卡壳是最好的学习清单</strong>。</li>
+</ol>
+<h3 id="sec-115" class="hd hd-2">15.10 形式化思维：把"文字描述"翻译成"数学问题"</h3>
+<p>很多卡壳不是因为你不会攻击，而是因为你<strong>还没把题目翻译成数学语言</strong>。题目是以故事、脚本、提示文本的形式给你的，而你的武器（扩欧、CRT、LLL、Coppersmith）只能作用于数学对象。中间那道"翻译"的桥，就是形式化思维能力。</p>
+<p><strong>四步翻译法</strong>：</p>
+<ol>
+<li><strong>识别对象</strong>：题里的每个量属于哪种数学对象？是大整数、有限域元素、椭圆曲线点、多项式、还是格向量？先给它们"验明正身"。例如看到 <code>p = getPrime(512)</code> 就知道 p 是大素数，看到 <code>GF(2^8)</code> 就知道在有限域里。</li>
+<li><strong>识别关系</strong>：对象之间满足什么等式或同余？把脚本的每一行"赋值/运算"改写成 <code>A = f(B, C)</code> 的形式。这一步要把程序语义变成代数语义。</li>
+<li><strong>识别约束</strong>：哪些量是已知的、哪些是未知的、未知量的取值范围有多大？<strong>约束决定了攻击方法</strong>——同样是"求 x"，x 是 1024 位随机数就无解，x 是 40 位种子就可以爆破。</li>
+<li><strong>写成问题</strong>：最后用一句话说清"我要在哪个集合里，满足哪些条件下，求出哪个量"。这句话写出来，往往答案就浮现了。</li>
+</ol>
+<p><strong>示范翻译</strong>。题目说：*"我们取一个大素数 p，选种子 x 生成 <code>a = (x·12345 + 678) mod p</code>，只告诉你 a 和 p，求 x，已知 x 小于 2⁴⁰。"*</p>
+<ul>
+<li>对象：a、p 是大整数，x 是未知整数。</li>
+<li>关系：<code>a ≡ 12345·x + 678 (mod p)</code>。</li>
+<li>约束：<code>x ＜ 2⁴⁰</code>，即 x 相对 p（512 位）极小。</li>
+<li>写成问题："在模 p 意义下解线性同余，且解落在小范围"——这是隐藏数问题，用 LLL 或直接验证逆元（若 12345 可逆，直接 <code>x = (a−678)·12345⁻¹ mod p</code>，因为 x 小，结果唯一）。翻译完你会发现它比你想象的更简单。</li>
+</ul>
+<blockquote class="callout">训练法：每读一道题，强制用一句话写出"求什么、在哪求、约束是什么"。写不出来的题，说明还没读懂，不要急着写代码。</blockquote>
+<h3 id="sec-116" class="hd hd-2">15.11 分治与降维思维：把陌生问题拆成熟悉问题</h3>
+<p>面对一道看似全新的难题，高手的第一反应不是"这题我没见过"，而是"<strong>它能拆成我见过的几块吗</strong>"。分治思维包含三个方向：</p>
+<p><strong>纵向剥离（分阶段）</strong>。很多题是"多阶段流水线"：先破解第一层拿到密钥，再用密钥解第二层。找出阶段边界，逐个击破。判断依据：如果脚本里出现两段独立的逻辑（比如先用 <code>random</code> 生成 RSA 的 p，再用 p 加密 flag），那就是两个阶段——<strong>先攻随机数，再攻 RSA</strong>。不要试图一步到位同时解决两段。</p>
+<p><strong>横向降维（化高为低）</strong>。把高维未知降成低维未知：</p>
+<ul>
+<li>椭圆曲线上的离散对数，若阶 n 光滑，用 Pohlig-Hellman 降成若干小素数阶的子问题。</li>
+<li>高维格问题，先固定一部分变量，降低维度再 LLL。</li>
+<li>多变量同余，先消元成一个变量。</li>
+<li>大 n 分解不了，但若能推出 p 的高位，就降成"补低位"的小根问题（Coppersmith）。</li>
+</ul>
+<p><strong>局部突破（找切入点）</strong>。整体攻不动时，找一个"最小的可解子问题"先解决，它往往能连锁解锁全局。典型：解不出完整的 d，但能解出 <code>d mod (p−1)</code>（即 dp）——而 dp 恰恰是打开整个 RSA 的钥匙。<strong>问自己："如果我只想知道一个最小的值，是哪个值？"</strong></p>
+<div class='table-wrap'><table><thead><tr><th>分治策略</th><th>什么时候用</th><th>思维口诀</th></tr></thead><tbody>
+<tr><td>纵向剥离</td><td>题目有明显的多段逻辑</td><td>一层一层剥，别想一口吃下</td></tr>
+<tr><td>横向降维</td><td>未知量太多/维度太高</td><td>能不能固定几个、消掉几个</td></tr>
+<tr><td>局部突破</td><td>整体无解但局部可解</td><td>先拿最小的那块，连锁解锁</td></tr>
+</tbody></table></div>
+<h3 id="sec-117" class="hd hd-2">15.12 反事实与边界思维："如果……会怎样"</h3>
+<p>这是发现弱点的利器，本质是<strong>主动制造矛盾来暴露真相</strong>。</p>
+<p><strong>参数极端化</strong>。把参数推到极端，看算法是否退化：</p>
+<ul>
+<li>e = 1 时会怎样？密文等于明文。那 e = 2、3 呢？小 e 可能不开模。</li>
+<li>随机数 k = 0 或 k = 1 会怎样？签名会暴露私钥。</li>
+<li>p = q 会怎样？n 变成完全平方数，可直接开方分解——所以题目若说"p、q 随机生成"，要检查它们是否恰好太接近（Fermat 分解）。</li>
+</ul>
+<p><strong>构造已知答案反推</strong>。自己编一组明文和密钥跑一遍加密脚本，观察输出规律。当你能用这个方法"复现"题目的行为时，就理解了脚本的真实语义——很多"看不懂的自定义加密"，跑几组小规模数据就露馅了。这也是验证你理解是否正确的金标准。</p>
+<p><strong>反事实提问清单</strong>：</p>
+<ol>
+<li>如果我用两个相同的明文加密，输出会相同吗？（→ 确定性 vs 随机化，ECB）</li>
+<li>如果我把明文改一个比特，输出变化有规律吗？（→ 线性/异或结构）</li>
+<li>如果我不停调用加密接口，能不能凑出我想要的值？（→ Oracle 攻击）</li>
+<li>如果某个量取特殊值，公式会不会退化成简单的形式？（→ 边界漏洞）</li>
+</ol>
+<p>这套思维的价值在于：它把"被动读题"变成"主动做实验"，很多卡死的思路在做一两次反事实实验后就通了。</p>
+<h3 id="sec-118" class="hd hd-2">15.13 类比迁移：把做过的题变成通法</h3>
+<p>刷题的意义不在于记住答案，而在于建立<strong>模式库</strong>。类比迁移是识别"这道题和做过的哪道题本质相同"的能力。</p>
+<p><strong>识别模式的三个层次</strong>（由浅到深）：</p>
+<ol>
+<li><strong>表面特征层</strong>：都是 RSA、都有小 e——这层最弱，容易误判。</li>
+<li><strong>结构层</strong>：都是"用已知的部分信息 + 一个小范围约束，恢复完整秘密"——这层开始触及本质。</li>
+<li><strong>问题类型层</strong>：都是"隐藏数问题（HNP）"，可以统一用 LLL 解——这层是最高级的迁移。</li>
+</ol>
+<p>举例：LCG 截断输出攻击、RSA 已知 p 高位、DSA 部分 nonce 泄露，表面看是三道完全不同的题，但本质都是"<strong>一个未知的小量，藏在若干线性同余式里</strong>"，都属于 HNP，都能用 LLL 构造格解决。<strong>认出这个共同点，你就从"会做三道题"升级到"会做一整类题"。</strong></p>
+<p><strong>跨算法类比表</strong>：</p>
+<div class='table-wrap'><table><thead><tr><th>表面不同的题</th><th>共同的数学本质</th><th>通用武器</th></tr></thead><tbody>
+<tr><td>LCG 截断输出、RSA 部分私钥泄露、DSA nonce 泄露</td><td>隐藏数问题：小未知量藏于线性同余</td><td>LLL 构造格</td></tr>
+<tr><td>小 e 开根、广播攻击、相关消息</td><td>明文多项式在模意义下"没绕圈"（无约减）</td><td>整数开根 / 多项式 GCD</td></tr>
+<tr><td>p、q 太近、p-1 光滑、p 高位已知</td><td>因子具有可利用的结构</td><td>Fermat / Pollard p-1 / Coppersmith</td></tr>
+<tr><td>同密钥异或多明文、nonce 重用、ECB</td><td>本该随机的量被复用</td><td>异或消元 / 碰撞</td></tr>
+</tbody></table></div>
+<p><strong>建立迁移能力的方法</strong>：每做一道题，在其解题笔记最上方写一句"<strong>这题本质是______问题</strong>"。积累几十条后，你会发现考点高度收敛，新题大多只是旧模式换了皮。</p>
+<h3 id="sec-119" class="hd hd-2">15.14 元认知：监控你自己的思考</h3>
+<p>元认知是"关于思考的思考"——你不仅要解题，还要<strong>实时观察自己解题的状态</strong>。这是高手区别于新手的隐形能力。</p>
+<p><strong>三个自我提问，每隔十分钟问一次</strong>：</p>
+<ol>
+<li><strong>我在哪个阶段？</strong>（审题 / 建模 / 验证 / 卡壳）——如果十分钟还停在"审题"，说明读题方式有问题。</li>
+<li><strong>我现在有几个假设？</strong>——如果只有一个，且已验证失败，立刻换；如果有三个以上，说明审题没收敛，回去缩小范围。</li>
+<li><strong>我有进展吗？</strong>——进展不一定是"解出来了"，排除了一个错误假设、确认了一个参数特征，都是进展。连续十分钟零进展就该强制切换。</li>
+</ol>
+<p><strong>假设管理表</strong>。养成在草稿纸上维护一张表的习惯，每提出一个假设就登记：</p>
+<div class='table-wrap'><table><thead><tr><th>假设</th><th>依据</th><th>验证方法</th><th>结果</th></tr></thead><tbody>
+<tr><td>小 e 开根</td><td>e=3 且 c 偏小</td><td>整数开三次根</td><td>失败，c 接近 n</td></tr>
+<tr><td>共模攻击</td><td>有两个 n</td><td>gcd(n1,n2)</td><td>gcd=1，排除</td></tr>
+<tr><td>低指数广播</td><td>e=3 且两组</td><td>CRT 合并后开根</td><td>成功</td></tr>
+</tbody></table></div>
+<p>这张表的意义：它防止你在脑子里"反复推翻又反复回到同一个死假设"，把思考外化，让每一步都可追溯。</p>
+<p><strong>何时该放弃一条路</strong>。信号：需要反复加"特殊情况补丁"才能自圆其说；验证结果与已知事实矛盾却想强行解释；同一假设验证两次都失败。出现这些信号，果断放弃，不要在沉没成本里越陷越深。<strong>放弃一条错路不是失败，是节省下一条对路的时间。</strong></p>
+<h3 id="sec-120" class="hd hd-2">15.15 完整思维流复盘：三道题，从审题到解出</h3>
+<p>前面讲的都是方法，这一节把方法串成<strong>真实的思维流</strong>——包括走弯路、卡壳、纠正、突破。这三道题是仿真的典型综合题，重点看每一步"为什么这么想"。</p>
+<h4 id="sec-121" class="hd hd-3">15.15.1 复盘一：层层包装的 RSA</h4>
+<p><strong>题目</strong>：给了 <code>n, e=65537, c</code>，另有一个 <code>hint = pow(x, 2, n)</code>，其中 <code>x</code> 是 p 与 q 的某种组合，题目注释写着"两个素数离得很近"。</p>
+<p><strong>思维流</strong>：</p>
+<ol>
+<li><strong>审题</strong>：e 是标准值，排除小 e 类攻击。注释"两个素数离得很近"是明示信号——立刻想到 Fermat 分解。</li>
+<li><strong>第一假设</strong>：<code>p、q 接近 → n = ((p+q)/2)² − ((p−q)/2)²</code>。写个循环从 <code>isqrt(n)</code> 往上试 <code>a² − n</code> 是否为平方数。</li>
+<li><strong>验证</strong>：几万次迭代内找到 a，分解成功。若几百次没有，说明"接近"没那么近，此路不通。</li>
+<li><strong>拿到 p、q 之后</strong>：算 φ、求 d、解 c——本应结束。但题目还给了 <code>hint</code>。</li>
+<li><strong>关键转折（元认知起作用）</strong>：*为什么题目多给一个 hint？如果分解就够了，hint 是多余的。* 这种"多余信息"必是第二层的入口。</li>
+<li><strong>重新审题</strong>：hint 是 <code>x² mod n</code>，x 是 p、q 的组合。试着把 <code>x = p+q</code> 代入验证，发现 <code>hint = (p+q)² mod n</code>。这一步靠的是"反事实实验"——自己构造 x 试一试。</li>
+<li><strong>最终目的</strong>：题目其实想让你先分解，再验证 hint 一致性确认分解正确。这里 hint 是校验和，不是必需，但它的存在提示你"分解方向是对的"。</li>
+<li><strong>复盘要点</strong>：主线是 Fermat 分解；突破点是注意到"多余信息"并主动实验。如果只盯着 hint 而忽略注释，会走很多弯路。</li>
+</ol>
+<h4 id="sec-122" class="hd hd-3">15.15.2 复盘二：交互签名题</h4>
+<p><strong>题目</strong>：一个服务提供签名，可提交任意消息 m，返回 <code>(r, s)</code>。目标是伪造 <code>flag</code> 的签名。</p>
+<p><strong>思维流</strong>：</p>
+<ol>
+<li><strong>审题</strong>：签名接口 + 伪造目标 = 存在签名方案漏洞。先判断是 RSA 签名还是 ECDSA——多调用几次，看 <code>(r,s)</code> 的形状（r、s 的位宽接近 n 的说明是 ECDSA/DSA）。</li>
+<li><strong>收集数据</strong>：连续对若干消息签名，记录所有 <code>(r, s, h(m))</code>。</li>
+<li><strong>找模式（类比迁移）</strong>：检查是否有两个 r 相同。若有——立刻想到 ECDSA 随机数复用（第 7 章）。</li>
+<li><strong>无碰撞时的反事实</strong>：若 r 都不同，考虑"随机数是可预测的"（弱随机），或"低指数 RSA 签名伪造"。用 15.12 的实验法：看 r 是否随时间戳规律变化。</li>
+<li><strong>建模</strong>：假设 k 复用，对两次签名 <code>s1 = k⁻¹(h1 + d·r)</code>、<code>s2 = k⁻¹(h2 + d·r)</code>，两式相减消去 d 求 k。</li>
+<li><strong>验证</strong>：用求出的 k 回代任一签名算出 d，再用 d 对 flag 签名，提交验证。</li>
+<li><strong>卡壳预案</strong>：若 k 不复用，转向"用已知消息诱导 k 取值"的选择消息攻击；再不行考虑格攻击（部分 nonce 泄露）。</li>
+<li><strong>复盘要点</strong>：先分类（哪种签名），再找模式（碰撞/规律），模式没命中就按预案降级。全程有明确的"下一步备选"，不会呆住。</li>
+</ol>
+<h4 id="sec-123" class="hd hd-3">15.15.3 复盘三：伪装成格密码的 LCG</h4>
+<p><strong>题目</strong>：给了一串 64 位数 <code>y_i</code>，提示"这些数由某种线性递推生成，但高位丢失了，只剩低 32 位"，要求预测下一个数。</p>
+<p><strong>思维流</strong>：</p>
+<ol>
+<li><strong>审题</strong>：看到"线性递推"+"部分位丢失"，第一反应是 LCG + 截断输出（第 8 章），不是格密码。若被"丢失"二字误导去想 LLL，其实也能解，但绕远。</li>
+<li><strong>形式化（15.10）</strong>：设完整状态 <code>s_i = y_i + H_i·2³²</code>，其中 <code>H_i</code> 是未知高位。递推 <code>s_{i+1} = a·s_i + b mod 2⁶⁴</code>。未知量是 a、b 和所有 H_i。</li>
+<li><strong>分治（15.11）</strong>：先用已知的连续 y 值，通过低位关系求 a、b（低 32 位的递推不受高位影响的部分可直接算）。</li>
+<li><strong>降维</strong>：a、b 确定后，只剩 H_i 未知，且 H_i 范围小（32 位），转成"解小未知量"问题。</li>
+<li><strong>验证反事实</strong>：编一组已知 a、b、种子，模拟生成序列并截断，验证自己的推导公式——确认公式正确后再套真实数据。</li>
+<li><strong>收尾</strong>：恢复完整状态后递推预测下一个数，取其低 32 位输出。</li>
+<li><strong>复盘要点</strong>：题面用词("丢失""格")会诱导你走复杂路线，但形式化后问题本质清晰——这是 LCG，不是格题。<strong>信数学本质，不信题面修辞。</strong></li>
+</ol>
+<h3 id="sec-124" class="hd hd-2">15.16 一页纸决策树：把整套思维装进一张图</h3>
+<p>最后，把本章的思维流程浓缩成一棵决策树。实战时按它走，就不会无从下手：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">拿到题
+│
+├─ 第一步：题里有没有可执行的加密脚本？
+│   ├─ 没有（只有数据/密文）→ 编码 / 古典密码 / 词频分析（第 3 章）
+│   └─ 有 → 通读，标注变量角色，进入第二步
+│
+├─ 第二步：属于哪类"偏离"？（15.1 三分类）
+│   ├─ 参数削弱 → 看具体哪个参数小
+│   │   ├─ 指数 e 小 → 小 e 开根 / 相关消息
+│   │   ├─ 素数/模数小或结构特殊 → 分解 / Fermat / p-1
+│   │   └─ 随机数空间小 → 爆破种子
+│   ├─ 信息泄露 → 看漏了什么
+│   │   ├─ dp/dq → dp 攻击
+│   │   ├─ 高位/低位 → Coppersmith / LLL
+│   │   └─ 多个密文同密钥 → 异或消元 / 广播 / nonce 复用
+│   └─ 用法误用 → 看怎么用的
+│       ├─ 同块重复 → ECB
+│       ├─ 有报错接口 → Padding Oracle / 选择密文
+│       └─ 自定义实现 → 反事实实验找退化（15.12）
+│
+├─ 第三步：形式化——写出"求什么、在哪求、约束是什么"（15.10）
+│   └─ 写不出来 → 回第二步重新审题
+│
+├─ 第四步：这个本质问题我见过吗？（15.13 类比）
+│   ├─ 见过 → 直接套通法，先小规模验证
+│   └─ 没见过 → 分治降维（15.11），找最小可解子问题
+│
+├─ 第五步：验证假设（15.12 / 15.14）
+│   ├─ 成功 → 转 flag 格式，检查前缀
+│   └─ 失败 → 查假设管理表，换下一个假设；全失败则走 15.4 排查清单
+│
+└─ 每十分钟：元认知三问——我在哪阶段？几个假设？有进展吗？（15.14）</code></pre></div>
+<p><strong>这张树的使用方式</strong>：打印出来放在旁边。卡壳时，从你"以为自己在的那一步"往回退一步——绝大多数卡壳是因为跳步了（没形式化就写代码、没分类就选武器）。退回上一步补齐，往往就通了。</p>
+<p>补充说明：决策树是"思维的外骨架"，不是死板的教条。当你经验足够丰富，这些步骤会内化成本能。但在内化之前，严格按流程走，能让你在最慌乱的赛场上依然有路可循。<strong>先守规矩，再破规矩。</strong></p>
+<blockquote class="callout">总结这一章：<strong>密码解题 = 审清题（找偏离）→ 定类型（三分类）→ 建推理链（信号到假设）→ 快验证（小规模）→ 卡住就走排查清单 → 全程用出题人视角和数量级直觉校准。</strong> 武器库（前十四章）决定你能走多远，思维方法决定你能不能迈出第一步。两者结合，才是完整的实战能力。</blockquote>
+<h2 id="sec-125" class="hd hd-1">附录 A 常用公式速查</h2>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">费马小定理：  a^(p-1) ≡ 1 (mod p)
+欧拉定理：    a^φ(n) ≡ 1 (mod n)
+逆元：        a^-1 ≡ a^(p-2) (mod p)   [p 为质数]
+中国剩余：    x = Σ ai·Mi·ti (mod M)
+RSA：         c=m^e mod n;  m=c^d mod n;  d=e^-1 mod φ(n)
+φ(pq) = (p-1)(q-1)
+共模：        m = c1^s1 · c2^s2 (mod n),  e1·s1+e2·s2=1
+Wiener：      e/n 连分数逼近 k/d
+二次剩余：    x ≡ ±a^((p+1)/4) (mod p)   [p≡3 mod 4]
+BSGS：        解 g^x≡h 的复杂度 O(√p)</code></pre></div>
+<h2 id="sec-126" class="hd hd-1">附录 B 常用 Python 代码模板</h2>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> Crypto.Util.number <span class="kw">import</span> long_to_bytes, bytes_to_long, getPrime, <span class="kw">inverse</span>
+<span class="kw">from</span> gmpy2 <span class="kw">import</span> iroot, is_prime, <span class="kw">gcd</span>
+<span class="kw">import</span> base64, hashlib, math
+
+<span class="cm"># 快速幂</span>
+<span class="kw">def</span> qpow(a, b, n):
+    <span class="kw">return</span> <span class="kw">pow</span>(a, b, n)
+
+<span class="cm"># 扩展欧几里得</span>
+<span class="kw">def</span> exgcd(a, b):
+    <span class="kw">if</span> b == <span class="nm">0</span>: <span class="kw">return</span> a, <span class="nm">1</span>, <span class="nm">0</span>
+    g, <span class="kw">x</span>, y = exgcd(b, a % b)
+    <span class="kw">return</span> g, y, <span class="kw">x</span> - (a // b) * y
+
+<span class="cm"># 求逆元</span>
+<span class="kw">def</span> inv(a, n):
+    g, <span class="kw">x</span>, _ = exgcd(a, n)
+    <span class="kw">return</span> <span class="kw">x</span> % n <span class="kw">if</span> g == <span class="nm">1</span> <span class="kw">else</span> <span class="kw">None</span>
+
+<span class="cm"># Miller-Rabin、Pollard rho、CRT、BSGS 见正文</span></code></pre></div>
+<h2 id="sec-127" class="hd hd-1">附录 C 典型例题精解（完整复现）</h2>
+<p>本附录选取 CTF 中六类高频题型，给出从"读题分析"到"完整解题脚本"的全过程，帮助读者把前文的知识点串联成实战能力。</p>
+<h3 id="sec-128" class="hd hd-2">C.1 例一：凯撒 + Base64 套娃</h3>
+<p><strong>题目</strong>：给出密文 <code>S1ZWRktJRlpHWk9TSEE=</code>，提示"简单移位 + 常见编码"。</p>
+<p><strong>分析</strong>：结尾带 <code>=</code> 且字符集为 Base64，先 Base64 解码，再看是否为凯撒。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> base64, string
+c = <span class="st">"S1ZWRktJRlpHWk9TSEE="</span>
+s = base64.b64decode(c).decode()        <span class="cm"># IHAVENOSECRETS? 之类的串</span>
+<span class="kw">def</span> caesar(s, k):
+    out = <span class="st">""</span>
+    <span class="kw">for</span> ch <span class="kw">in</span> s:
+        <span class="kw">if</span> ch.isupper():
+            out += chr((ord(ch)-<span class="nm">65</span>-k) % <span class="nm">26</span> + <span class="nm">65</span>)
+        <span class="kw">elif</span> ch.islower():
+            out += chr((ord(ch)-<span class="nm">97</span>-k) % <span class="nm">26</span> + <span class="nm">97</span>)
+        <span class="kw">else</span>:
+            out += ch
+    <span class="kw">return</span> out
+<span class="kw">for</span> k <span class="kw">in</span> <span class="kw">range</span>(<span class="nm">26</span>):                      <span class="cm"># 爆破全部 <span class="nm">26</span> 个位移</span>
+    <span class="kw">print</span>(k, caesar(s, k))</code></pre></div>
+<p>从输出中肉眼找出可读的英文（如 <code>IHAVENOSECRET</code> → 位移 8 得 <code>ATOUFGKUKW...</code>，调整到语义通顺），即得到 flag 明文。</p>
+<h3 id="sec-129" class="hd hd-2">C.2 例二：RSA 共模攻击完整复现</h3>
+<p><strong>题目</strong>：同一 n、同一 m，<code>e1=17, e2=19</code>，给出 <code>c1, c2</code>，求 m。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> Crypto.Util.number <span class="kw">import</span> long_to_bytes
+<span class="kw">from</span> math <span class="kw">import</span> <span class="kw">gcd</span>
+
+<span class="kw">def</span> exgcd(a, b):
+    <span class="kw">if</span> b == <span class="nm">0</span>: <span class="kw">return</span> a, <span class="nm">1</span>, <span class="nm">0</span>
+    g, <span class="kw">x</span>, y = exgcd(b, a % b)
+    <span class="kw">return</span> g, y, <span class="kw">x</span> - (a // b) * y
+
+<span class="kw">def</span> common_modulus(c1, c2, e1, e2, n):
+    <span class="kw">assert</span> <span class="kw">gcd</span>(e1, e2) == <span class="nm">1</span>
+    _, s1, s2 = exgcd(e1, e2)            <span class="cm"># e1*s1 + e2*s2 = <span class="nm">1</span></span>
+    <span class="cm"># 处理负指数：a^(-k) = <span class="kw">inverse</span>(a)^k</span>
+    <span class="kw">def</span> neg_pow(base, exp, mod):
+        <span class="kw">if</span> exp &gt;= <span class="nm">0</span>: <span class="kw">return</span> <span class="kw">pow</span>(base, exp, mod)
+        <span class="kw">return</span> <span class="kw">pow</span>(<span class="kw">pow</span>(base, -<span class="nm">1</span>, mod), -exp, mod)
+    <span class="kw">return</span> neg_pow(c1, s1, n) * neg_pow(c2, s2, n) % n
+
+m = common_modulus(c1, c2, <span class="nm">17</span>, <span class="nm">19</span>, n)
+<span class="kw">print</span>(long_to_bytes(m))</code></pre></div>
+<p><strong>要点</strong>：<code>gcd(e1,e2)=1</code> 是前提；负指数必须用逆元转换，这是初学者最常踩的坑。</p>
+<h3 id="sec-130" class="hd hd-2">C.3 例三：RSA 小指数广播攻击</h3>
+<p><strong>题目</strong>：<code>e=3</code>，同一明文用 3 个互质的 n 加密，给出三组 <code>(n_i, c_i)</code>。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> functools <span class="kw">import</span> reduce
+<span class="kw">from</span> gmpy2 <span class="kw">import</span> iroot
+<span class="kw">from</span> Crypto.Util.number <span class="kw">import</span> long_to_bytes
+
+<span class="kw">def</span> crt(rs, ms):
+    M = reduce(<span class="kw">lambda</span> a, b: a*b, ms)
+    <span class="kw">x</span> = <span class="nm">0</span>
+    <span class="kw">for</span> r, m <span class="kw">in</span> zip(rs, ms):
+        <span class="kw">x</span> += r * (M//m) * <span class="kw">pow</span>(M//m, -<span class="nm">1</span>, m)
+    <span class="kw">return</span> <span class="kw">x</span> % M
+
+<span class="kw">x</span> = crt(cs, ns)                           <span class="cm"># <span class="kw">x</span> = m^<span class="nm">3</span> mod ∏n_i</span>
+m, exact = iroot(<span class="kw">x</span>, <span class="nm">3</span>)
+<span class="kw">assert</span> exact                              <span class="cm"># 收集数足够时必然精确</span>
+<span class="kw">print</span>(long_to_bytes(<span class="kw">int</span>(m)))</code></pre></div>
+<p><strong>要点</strong>：至少需要 e 组（这里 3 组）才能满足 <code>m^e ＜ ∏n_i</code>，开方才精确。</p>
+<h3 id="sec-131" class="hd hd-2">C.4 例四：Wiener 低解密指数攻击</h3>
+<p><strong>题目</strong>：<code>e</code> 异常大（接近 n），怀疑 d 很小。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> gmpy2 <span class="kw">import</span> isqrt
+
+<span class="kw">def</span> cf(a, b):                             <span class="cm"># 连分数展开 a/b</span>
+    res = []
+    <span class="kw">while</span> b:
+        res.append(a // b); a, b = b, a % b
+    <span class="kw">return</span> res
+
+<span class="kw">def</span> convergents(seq):
+    p0, p1, q0, q1 = <span class="nm">0</span>, <span class="nm">1</span>, <span class="nm">1</span>, <span class="nm">0</span>
+    <span class="kw">for</span> a <span class="kw">in</span> seq:
+        p0, p1 = p1, a*p1 + p0
+        q0, q1 = q1, a*q1 + q0
+        <span class="kw">yield</span> p1, q1                      <span class="cm"># k/d</span>
+
+<span class="kw">for</span> k, d <span class="kw">in</span> convergents(cf(e, n)):
+    <span class="kw">if</span> k == <span class="nm">0</span>: <span class="kw">continue</span>
+    phi = (e*d - <span class="nm">1</span>) // k
+    <span class="kw">if</span> (e*d - <span class="nm">1</span>) % k: <span class="kw">continue</span>
+    s = n - phi + <span class="nm">1</span>                       <span class="cm"># s = p+q</span>
+    D = s*s - <span class="nm">4</span>*n
+    <span class="kw">if</span> D &gt;= <span class="nm">0</span> <span class="kw">and</span> isqrt(D)**<span class="nm">2</span> == D:
+        p, q = (s+isqrt(D))//<span class="nm">2</span>, (s-isqrt(D))//<span class="nm">2</span>
+        <span class="kw">if</span> p*q == n:
+            m = <span class="kw">pow</span>(c, d, n)
+            <span class="kw">print</span>(long_to_bytes(m)); <span class="kw">break</span></code></pre></div>
+<p><strong>要点</strong>：e 很大通常是 Wiener 的强信号；连分数收敛项 <code>k/d</code> 中 d 即为私钥。</p>
+<h3 id="sec-132" class="hd hd-2">C.5 例五：ECDSA 随机数复用</h3>
+<p><strong>题目</strong>：同一私钥的两条签名用了相同的 k，给出 <code>(z1,r1,s1)</code>、<code>(z2,r2,s2)</code> 与曲线阶 n。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> recover_priv(z1, s1, r1, z2, s2, r2, n):
+    <span class="kw">assert</span> r1 == r2                       <span class="cm"># 相同 k ⇒ 相同 r</span>
+    k = (z1 - z2) * <span class="kw">pow</span>(s1 - s2, -<span class="nm">1</span>, n) % n
+    d = (s1 * k - z1) * <span class="kw">pow</span>(r1, -<span class="nm">1</span>, n) % n
+    <span class="kw">return</span> d
+
+d = recover_priv(z1, s1, r1, z2, s2, r2, n)
+<span class="kw">print</span>(<span class="st">"private key ="</span>, d)</code></pre></div>
+<p><strong>要点</strong>：<code>r1 == r2</code> 是随机数复用的直接证据；恢复出 d 后可伪造任意签名。</p>
+<h3 id="sec-133" class="hd hd-2">C.6 例六：LCG 参数恢复与预测</h3>
+<p><strong>题目</strong>：给出 LCG 连续输出 <code>s0,s1,s2,s3,...</code>（模 m 已知），预测下一个。</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> math <span class="kw">import</span> <span class="kw">gcd</span>
+
+<span class="kw">def</span> recover_lcg(s, m):
+    <span class="cm"># 差分消元：s_{i+<span class="nm">1</span>}-s_i = a(s_i - s_{i-<span class="nm">1</span>}) mod m</span>
+    diff1 = (s[<span class="nm">1</span>]-s[<span class="nm">0</span>]) % m
+    diff2 = (s[<span class="nm">2</span>]-s[<span class="nm">1</span>]) % m
+    a = diff2 * <span class="kw">pow</span>(diff1, -<span class="nm">1</span>, m) % m     <span class="cm"># 需 <span class="kw">gcd</span>(diff1,m)=<span class="nm">1</span></span>
+    c = (s[<span class="nm">1</span>] - a*s[<span class="nm">0</span>]) % m
+    <span class="kw">return</span> a, c
+
+a, c = recover_lcg(s, m)
+<span class="kw">print</span>(<span class="st">"next ="</span>, (a*s[-<span class="nm">1</span>] + c) % m)</code></pre></div>
+<p><strong>要点</strong>：当 <code>gcd(s1-s0, m) ≠ 1</code> 时不能直接求逆，需对 m 的因子分别处理或用格方法，属进阶情形。</p>
+<h3 id="sec-134" class="hd hd-2">C.7 例题解的通用心法</h3>
+<p>回顾六道例题，可提炼出一套通用解题范式：</p>
+<ol>
+<li><strong>识别题型</strong>：从参数特征判断属于哪一类 attack（e 大→Wiener；多组 n→广播；r 相等→ECDSA 复用）。</li>
+<li><strong>定位破绽</strong>：找到题目中被削弱或泄露的要素（小 e、dp、重复随机数、可预测种子）。</li>
+<li><strong>套用模板</strong>：本讲义每章都给出了对应攻击的标准代码，先照搬再调整。</li>
+<li><strong>验证输出</strong>：用小规模自造数据验证脚本正确性，再套用到题目数据。</li>
+<li><strong>格式还原</strong>：flag 往往是字节串，注意 <code>long_to_bytes</code>、hex、base64 的最终转换。</li>
+</ol>
+<h2 id="sec-135" class="hd hd-1">结语</h2>
+<p>密码学是 CTF 中最"纯粹"的方向——它不靠工具链的堆砌，而靠对数学之美的洞察。从模运算到格理论，每攻破一道题，都是与历史上最聪明的头脑隔空对话。愿本讲义能成为你探索 Crypto 世界的地图。祝Flag 收割顺利！</p>
+<blockquote class="callout"><strong>免责声明</strong>：本讲义中的攻击方法仅用于 CTF 竞赛与授权的安全学习研究，严禁用于任何未授权的攻击行为。</blockquote>
+    </article>
+  </main>
+</div>
+<button id="toTop" aria-label="回到顶部">&#8593;</button>
+<script>
+const TOC_DATA = [{"text": "前言", "id": "sec-1", "children": []}, {"text": "第一章 CTF Crypto 概览与学习路线", "id": "sec-2", "children": [{"text": "1.1 Crypto 在 CTF 中的地位", "id": "sec-3"}, {"text": "1.2 能力图谱", "id": "sec-4"}, {"text": "1.3 推荐学习路线", "id": "sec-5"}, {"text": "1.4 环境搭建与工具链", "id": "sec-6"}]}, {"text": "第二章 数学基础：CTF Crypto 的语言", "id": "sec-7", "children": [{"text": "2.1 模运算与同余", "id": "sec-8"}, {"text": "2.2 欧几里得算法与扩展欧几里得", "id": "sec-9"}, {"text": "2.3 欧拉定理与费马小定理", "id": "sec-10"}, {"text": "2.4 中国剩余定理（CRT）", "id": "sec-11"}, {"text": "2.5 阶、原根与离散对数", "id": "sec-12"}, {"text": "2.6 二次剩余与二次互反律", "id": "sec-13"}, {"text": "2.7 素性检测与因式分解", "id": "sec-14"}, {"text": "2.8 本节小结", "id": "sec-15"}]}, {"text": "第三章 编码与古典密码", "id": "sec-16", "children": [{"text": "3.1 字符与进制基础", "id": "sec-17"}, {"text": "3.2 Base 系列编码", "id": "sec-18"}, {"text": "3.3 古典替换密码", "id": "sec-19"}, {"text": "3.4 换位密码", "id": "sec-20"}, {"text": "3.5 其他常见编码", "id": "sec-21"}]}, {"text": "第四章 对称密码与异或分析", "id": "sec-22", "children": [{"text": "4.1 对称密码概览", "id": "sec-23"}, {"text": "4.2 异或（XOR）的性质与攻击", "id": "sec-24"}, {"text": "4.3 分组密码的工作模式", "id": "sec-25"}, {"text": "4.4 Padding Oracle 攻击", "id": "sec-26"}, {"text": "4.5 DES 与 AES", "id": "sec-27"}, {"text": "4.6 RC4 与流密码", "id": "sec-28"}, {"text": "4.7 本节小结", "id": "sec-29"}]}, {"text": "第五章 哈希函数与消息认证", "id": "sec-30", "children": [{"text": "5.1 哈希函数的基本性质", "id": "sec-31"}, {"text": "5.2 MD5 与 SHA-1 的实际攻击", "id": "sec-32"}, {"text": "5.3 长度扩展攻击（Length Extension Attack）", "id": "sec-33"}, {"text": "5.3b Merkle-Damgård 结构与填充细节", "id": "sec-34"}, {"text": "5.3c 哈希碰撞的现实意义", "id": "sec-35"}, {"text": "5.4 HMAC", "id": "sec-36"}, {"text": "5.5 本节小结", "id": "sec-37"}]}, {"text": "第六章 RSA：原理与攻击方法大全", "id": "sec-38", "children": [{"text": "6.1 RSA 算法回顾", "id": "sec-39"}, {"text": "6.2 RSA 攻击总览（速查表）", "id": "sec-40"}, {"text": "6.3 直接分解 n", "id": "sec-41"}, {"text": "6.4 e = 1 与小 e 直接开根", "id": "sec-42"}, {"text": "6.5 小 e 广播攻击（Håstad 攻击）", "id": "sec-43"}, {"text": "6.6 共模攻击（Common Modulus）", "id": "sec-44"}, {"text": "6.7 共享素因子攻击", "id": "sec-45"}, {"text": "6.8 Wiener 攻击（低解密指数 d）", "id": "sec-46"}, {"text": "6.9 dp / dq 泄露攻击", "id": "sec-47"}, {"text": "6.10 已知 φ(n) / p+q / p-q", "id": "sec-48"}, {"text": "6.11 e 与 φ(n) 不互质（AMM 攻击）", "id": "sec-49"}, {"text": "6.12 Coppersmith 攻击（部分信息恢复）", "id": "sec-50"}, {"text": "6.12b Franklin-Reiter 相关消息攻击", "id": "sec-51"}, {"text": "6.12c 已知相关明文的高位攻击", "id": "sec-52"}, {"text": "6.13 多素数 RSA 与其他变体", "id": "sec-53"}, {"text": "6.14 RSA 解题标准流程（SOP）", "id": "sec-54"}, {"text": "6.15 综合例题", "id": "sec-55"}]}, {"text": "第七章 离散对数与椭圆曲线", "id": "sec-56", "children": [{"text": "7.1 离散对数问题（DLP）", "id": "sec-57"}, {"text": "7.2 Diffie-Hellman 密钥交换", "id": "sec-58"}, {"text": "7.3 椭圆曲线密码学（ECC）", "id": "sec-59"}, {"text": "7.4 ECC 在 CTF 中的攻击点", "id": "sec-60"}, {"text": "7.5 本节小结", "id": "sec-61"}]}, {"text": "第八章 伪随机数与流密码攻击", "id": "sec-62", "children": [{"text": "8.1 伪随机数生成器（PRNG）", "id": "sec-63"}, {"text": "8.2 LCG 攻击", "id": "sec-64"}, {"text": "8.2b 种子空间爆破", "id": "sec-65"}, {"text": "8.3 MT19937 状态恢复", "id": "sec-66"}, {"text": "8.4 本节小结", "id": "sec-67"}]}, {"text": "第九章 格密码入门", "id": "sec-68", "children": [{"text": "9.1 格的基本概念", "id": "sec-69"}, {"text": "9.2 LLL 算法", "id": "sec-70"}, {"text": "9.3 用 LLL 解线性方程组（隐藏数）", "id": "sec-71"}, {"text": "9.4 背包密码（Merkle-Hellman）", "id": "sec-72"}, {"text": "9.5 隐藏数问题（HNP）", "id": "sec-73"}, {"text": "9.6 Coppersmith 与格", "id": "sec-74"}]}, {"text": "第十章 侧信道与综合题型", "id": "sec-75", "children": [{"text": "10.1 侧信道攻击简介", "id": "sec-76"}, {"text": "10.2 综合题型解题心法", "id": "sec-77"}, {"text": "10.3 常见易错点", "id": "sec-78"}]}, {"text": "第十一章 工具、资源与学习建议", "id": "sec-79", "children": [{"text": "11.1 解题工具清单", "id": "sec-80"}, {"text": "11.2 推荐练习平台", "id": "sec-81"}, {"text": "11.3 学习建议", "id": "sec-82"}]}, {"text": "第十二章 有限域与代数进阶", "id": "sec-83", "children": [{"text": "12.1 群、环、域的基本概念", "id": "sec-84"}, {"text": "12.2 有限域 GF(p) 与 GF(2^n)", "id": "sec-85"}, {"text": "12.3 多项式环与不可约多项式", "id": "sec-86"}, {"text": "12.4 AES S 盒的数学构造", "id": "sec-87"}, {"text": "12.5 有限域上的离散对数", "id": "sec-88"}]}, {"text": "第十三章 后量子密码学简介", "id": "sec-89", "children": [{"text": "13.1 量子计算对密码学的威胁", "id": "sec-90"}, {"text": "13.2 后量子密码的四大方向", "id": "sec-91"}, {"text": "13.3 LWE 问题：格密码的核心", "id": "sec-92"}, {"text": "13.4 CTF 中的后量子题目形态", "id": "sec-93"}]}, {"text": "第十四章 CTF Crypto 答题思维速查", "id": "sec-94", "children": [{"text": "14.1 从\"题目长什么样\"到\"用什么攻击\"", "id": "sec-95"}, {"text": "14.2 解题的标准动作清单", "id": "sec-96"}, {"text": "14.3 最容易踩的坑", "id": "sec-97"}, {"text": "14.4 持续精进的建议", "id": "sec-98"}]}, {"text": "第十五章 解题思维方法论：从拿到题到做出题", "id": "sec-99", "children": [{"text": "15.1 第一性原理：所有 Crypto 题都在考\"偏离标准的地方\"", "id": "sec-100"}, {"text": "15.2 拿到题的标准动作：先审后算", "id": "sec-101"}, {"text": "15.3 建立\"信号 → 假设\"的推理链", "id": "sec-102"}, {"text": "15.4 把\"卡壳\"变成可控流程：排查清单", "id": "sec-103"}, {"text": "15.5 各类题型的专属思维模板", "id": "sec-104"}, {"text": "15.6 逆向思维：从出题人的意图反推", "id": "sec-111"}, {"text": "15.7 数量级直觉：判断\"这条路走得通吗\"", "id": "sec-112"}, {"text": "15.8 认知陷阱：思维层面的常见错误", "id": "sec-113"}, {"text": "15.9 把思维练成习惯：训练方法", "id": "sec-114"}, {"text": "15.10 形式化思维：把\"文字描述\"翻译成\"数学问题\"", "id": "sec-115"}, {"text": "15.11 分治与降维思维：把陌生问题拆成熟悉问题", "id": "sec-116"}, {"text": "15.12 反事实与边界思维：\"如果……会怎样\"", "id": "sec-117"}, {"text": "15.13 类比迁移：把做过的题变成通法", "id": "sec-118"}, {"text": "15.14 元认知：监控你自己的思考", "id": "sec-119"}, {"text": "15.15 完整思维流复盘：三道题，从审题到解出", "id": "sec-120"}, {"text": "15.16 一页纸决策树：把整套思维装进一张图", "id": "sec-124"}]}, {"text": "附录 A 常用公式速查", "id": "sec-125", "children": []}, {"text": "附录 B 常用 Python 代码模板", "id": "sec-126", "children": []}, {"text": "附录 C 典型例题精解（完整复现）", "id": "sec-127", "children": [{"text": "C.1 例一：凯撒 + Base64 套娃", "id": "sec-128"}, {"text": "C.2 例二：RSA 共模攻击完整复现", "id": "sec-129"}, {"text": "C.3 例三：RSA 小指数广播攻击", "id": "sec-130"}, {"text": "C.4 例四：Wiener 低解密指数攻击", "id": "sec-131"}, {"text": "C.5 例五：ECDSA 随机数复用", "id": "sec-132"}, {"text": "C.6 例六：LCG 参数恢复与预测", "id": "sec-133"}, {"text": "C.7 例题解的通用心法", "id": "sec-134"}]}, {"text": "结语", "id": "sec-135", "children": []}];
+
+/* ---------- build TOC ---------- */
+const toc = document.getElementById('toc');
+function buildToc(nodes){
+  toc.innerHTML='';
+  nodes.forEach((n,idx)=>{
+    const chap=document.createElement('div'); chap.className='chap';
+    const a=document.createElement('a'); a.href='#'+n.id; a.textContent=n.text; a.dataset.id=n.id;
+    chap.appendChild(a);
+    if(n.children && n.children.length){
+      const sub=document.createElement('div'); sub.className='sub';
+      n.children.forEach(c=>{
+        const sa=document.createElement('a'); sa.href='#'+c.id; sa.textContent=c.text; sa.dataset.id=c.id;
+        sub.appendChild(sa);
+      });
+      chap.appendChild(sub);
+    }
+    toc.appendChild(chap);
+  });
+}
+buildToc(TOC_DATA);
+
+/* ---------- scroll spy ---------- */
+const allLinks=[...toc.querySelectorAll('a')];
+const headings=[...document.querySelectorAll('.hd')];
+let ticking=false;
+function onScroll(){
+  const st=window.scrollY||document.documentElement.scrollTop;
+  const h=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('progress').style.width=(h>0?(st/h*100):0)+'%';
+  document.getElementById('toTop').classList.toggle('show',st>500);
+  // active heading = last one above threshold
+  let active=null;
+  for(const hd of headings){ if(hd.getBoundingClientRect().top<=140) active=hd.id; else break; }
+  if(active){
+    allLinks.forEach(a=>a.classList.toggle('active',a.dataset.id===active));
+    const act=allLinks.find(a=>a.dataset.id===active);
+    if(act){
+      const r=act.getBoundingClientRect(), tr=toc.getBoundingClientRect();
+      if(r.top<tr.top+8||r.bottom>tr.bottom-8) act.scrollIntoView({block:'nearest'});
+    }
+  }
+  ticking=false;
+}
+window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(onScroll);ticking=true;}},{passive:true});
+onScroll();
+
+/* smooth jump + close mobile drawer */
+toc.addEventListener('click',e=>{
+  const a=e.target.closest('a'); if(!a)return;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+});
+
+/* ---------- search / filter ---------- */
+document.getElementById('search').addEventListener('input',e=>{
+  const q=e.target.value.trim().toLowerCase();
+  allLinks.forEach(a=>{
+    a.classList.toggle('hide', q!=='' && !a.textContent.toLowerCase().includes(q));
+  });
+  [...toc.children].forEach(chap=>{
+    const any=[...chap.querySelectorAll('a')].some(a=>!a.classList.contains('hide'));
+    chap.style.display=any?'':'none';
+  });
+});
+
+/* ---------- expand / collapse ---------- */
+let expanded=false;
+document.getElementById('expandBtn').addEventListener('click',()=>{
+  expanded=!expanded;
+  toc.querySelectorAll('.sub').forEach(s=>s.style.display=expanded?'':'none');
+  document.getElementById('expandBtn').textContent=expanded?'收起目录':'展开目录';
+});
+toc.querySelectorAll('.sub').forEach(s=>s.style.display='none');
+
+/* ---------- theme ---------- */
+const themeBtn=document.getElementById('themeBtn');
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  themeBtn.textContent=t==='dark'?'🌙 暗色':'☀️ 亮色';
+  try{localStorage.setItem('ctf-crypto-theme',t);}catch(e){}
+}
+let saved=null; try{saved=localStorage.getItem('ctf-crypto-theme');}catch(e){}
+setTheme(saved==='light'?'light':'dark');
+themeBtn.addEventListener('click',()=>setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'));
+
+/* ---------- mobile drawer ---------- */
+const sidebar=document.getElementById('sidebar'),overlay=document.getElementById('overlay');
+document.getElementById('menuBtn').addEventListener('click',()=>{
+  sidebar.classList.add('open'); overlay.classList.add('show');
+});
+overlay.addEventListener('click',()=>{sidebar.classList.remove('open');overlay.classList.remove('show');});
+
+/* ---------- copy buttons ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.copy-btn'); if(!b)return;
+  const code=b.closest('.code-wrap').querySelector('.code-body').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    b.textContent='已复制'; b.classList.add('done');
+    setTimeout(()=>{b.textContent='复制';b.classList.remove('done');},1600);
+  });
+});
+
+/* ---------- back to top ---------- */
+document.getElementById('toTop').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+</script>
+</body>
+</html>

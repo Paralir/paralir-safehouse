@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paralir 的安全屋</title>
+<meta name="description" content="Paralir的安全屋 — 网络空间安全英文术语检索、故事化闯关、四级/六级/考研词汇学习平台。">
+<meta name="keywords" content="Paralir的安全屋,Paralir 的安全屋,网络安全,CTF,术语检索,四级词汇,六级词汇,考研英语,网安">
+<meta name="robots" content="index,follow">
+<link rel="icon" id="favicon" href="">
+<link rel="stylesheet" href="styles.css?v=20261123w">
+</head>
+<body>
+<div id="boot" class="boot"><div class="boot-inner"><img id="bootLogo" class="boot-logo" alt="logo"><div class="boot-title">Paralir 的安全屋</div><div class="boot-sub" id="bootMsg">正在进入安全屋…</div></div></div>
+
+<!-- 世界观门禁层：未登录/注册前先看完世界观 -->
+<div id="gate" class="gate" style="display:none">
+  <div class="gate-grain"></div>
+  <div class="gate-top">
+    <div class="gate-brand"><img src="" id="gateLogo" alt=""> <span>PARALIR'S SAFE HOUSE</span></div>
+    <button class="gate-skip" id="gateSkip" style="display:none">跳过开场 »</button>
+  </div>
+  <div id="gateStage" class="gate-stage"></div>
+  <button class="gate-next" id="gateNext" style="display:none">继续 →</button>
+  <div class="gate-footer">© PARALIR · 网络空间安全趣味学习平台</div>
+</div>
+
+<div id="app" class="app" style="display:none">
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand" id="navHome">
+      <img id="brandLogo" class="brand-logo" alt="logo">
+      <div>
+        <div class="brand-name">Paralir 的安全屋</div>
+        <div class="brand-tag">Cybersecurity Base · 学习 & 训练平台</div>
+      </div>
+    </div>
+    <nav class="topnav" id="topnav">
+      <button class="tab" data-page="home"><span class="ti">🏠</span>主页面</button>
+      <button class="tab" data-page="lexicon"><span class="ti">⌕</span>术语检索系统</button>
+      <button class="tab" data-page="story"><span class="ti">📖</span>升级之路</button>
+      <button class="tab" data-page="game"><span class="ti">🔤</span>我是单词</button>
+      <button class="tab admin-only" data-page="admin" style="display:none"><span class="ti">⚙</span>管理员权限</button>
+    </nav>
+    <div class="userbox" id="userbox"></div>
+  </header>
+
+  <main id="main"></main>
+</div>
+
+<!-- Modal layer -->
+<div id="modal" class="modal-overlay" style="display:none"><div class="modal" id="modalBox"></div></div>
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+<script src="data.js?v=20261123w"></script>
+<script src="audio.js?v=20261123w"></script>
+<script src="gate.js?v=20261123w"></script>
+<script src="app.js?v=20261123w"></script>
+</body>
+</html>

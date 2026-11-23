@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CTF Reverse 方向系统讲义 · 网页版</title>
+<style>
+:root{
+  --bg:#0f1419; --bg-elev:#171e26; --bg-card:#1b232d; --bg-code:#12181f;
+  --text:#e6edf3; --text-dim:#9fb0c3; --text-faint:#6b7d90;
+  --accent:#4ea1ff; --accent-soft:rgba(78,161,255,.14);
+  --accent2:#39d3a5; --border:#2a3644; --border-soft:#212c38;
+  --code-kw:#ff7b72; --code-st:#a5d6ff; --code-nm:#d2a8ff; --code-cm:#7d8fa3;
+  --shadow:0 8px 30px rgba(0,0,0,.35);
+  --sidebar-w:320px; --content-max:900px;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+html[data-theme="light"]{
+  --bg:#f6f8fa; --bg-elev:#ffffff; --bg-card:#ffffff; --bg-code:#f6f8fa;
+  --text:#1f2933; --text-dim:#4a5866; --text-faint:#7b8794;
+  --accent:#0969da; --accent-soft:rgba(9,105,218,.09);
+  --accent2:#0a8f6f; --border:#d8dee4; --border-soft:#e8edf1;
+  --code-kw:#cf222e; --code-st:#0a3069; --code-nm:#8250df; --code-cm:#6e7781;
+  --shadow:0 6px 24px rgba(27,31,35,.10);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+  font-size:16px;line-height:1.75;-webkit-font-smoothing:antialiased}
+
+/* progress bar */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:200;transition:width .1s}
+
+/* topbar */
+.topbar{position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;gap:12px;
+  padding:0 20px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border-soft);z-index:120}
+.menu-btn{display:none;background:none;border:0;color:var(--text);font-size:22px;cursor:pointer;padding:4px 8px}
+.brand{font-weight:800;font-size:15px;letter-spacing:.3px;color:var(--text);display:flex;align-items:center;gap:9px}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:grid;place-items:center;color:#fff;font-size:13px;font-weight:900}
+.brand small{color:var(--text-faint);font-weight:500;font-size:12px}
+.topbar .spacer{flex:1}
+.icon-btn{background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);
+  border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px;transition:.2s}
+.icon-btn:hover{color:var(--accent);border-color:var(--accent)}
+
+/* layout */
+.layout{display:flex;margin-top:56px}
+.sidebar{position:fixed;top:56px;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-elev);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;z-index:100;transition:transform .25s}
+.sidebar-head{padding:16px 16px 10px}
+.search{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:9px;
+  padding:9px 12px;color:var(--text);font-size:13px;outline:none}
+.search:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.sidebar-hint{font-size:11px;color:var(--text-faint);margin-top:8px;padding:0 2px}
+.toc{overflow-y:auto;flex:1;padding:6px 8px 30px}
+.toc::-webkit-scrollbar{width:7px}
+.toc::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.toc a{color:var(--text-dim);text-decoration:none;display:block;border-radius:7px;
+  font-size:13.5px;line-height:1.45;padding:6px 10px;margin:1px 0;transition:.12s;
+  border-left:2px solid transparent}
+.toc a:hover{color:var(--text);background:var(--bg-card)}
+.toc a.active{color:var(--accent);background:var(--accent-soft);border-left-color:var(--accent);font-weight:600}
+.toc .chap{margin-top:10px}
+.toc .chap>a{color:var(--text);font-weight:650;font-size:13.5px}
+.toc .sub{padding-left:14px}
+.toc .sub a{font-size:12.5px;color:var(--text-faint)}
+.toc .sub a:hover,.toc .sub a.active{color:var(--accent)}
+.toc a.hide{display:none}
+
+/* main */
+.main{margin-left:var(--sidebar-w);flex:1;min-width:0}
+.hero{max-width:var(--content-max);margin:0 auto;padding:64px 28px 38px}
+.hero .kicker{color:var(--accent);font-weight:700;font-size:13px;letter-spacing:1.5px;text-transform:uppercase}
+.hero h1{font-size:40px;line-height:1.2;margin:14px 0 16px;font-weight:850;letter-spacing:-.5px}
+.hero p{color:var(--text-dim);font-size:16px;margin:0 0 22px}
+.hero .tags{display:flex;flex-wrap:wrap;gap:8px}
+.hero .tag{background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);
+  padding:5px 11px;border-radius:20px;font-size:12.5px}
+.hero .stat{display:flex;gap:22px;margin-top:26px;flex-wrap:wrap}
+.hero .stat div{color:var(--text-faint);font-size:12.5px}
+.hero .stat b{display:block;font-size:22px;color:var(--text);font-weight:800}
+
+.article{max-width:var(--content-max);margin:0 auto;padding:0 28px 120px}
+.hd{scroll-margin-top:76px}
+.hd-1{font-size:27px;font-weight:800;margin:52px 0 18px;padding:0 0 12px;border-bottom:2px solid var(--border);letter-spacing:-.3px}
+.hd-2{font-size:21px;font-weight:750;margin:34px 0 14px;color:var(--text)}
+.hd-3{font-size:17px;font-weight:700;margin:26px 0 10px;color:var(--accent2)}
+.hd-1::before{content:"";display:inline-block;width:8px;height:8px;background:var(--accent);
+  border-radius:2px;margin-right:12px;vertical-align:middle}
+.article p{margin:0 0 16px;color:var(--text)}
+.article ul,.article ol{margin:0 0 18px;padding-left:26px}
+.article li{margin:6px 0;color:var(--text)}
+.article strong{color:var(--text);font-weight:700}
+.article a{color:var(--accent)}
+article code:not(.code-body){background:var(--bg-code);border:1px solid var(--border-soft);
+  color:var(--code-nm);padding:1px 6px;border-radius:5px;font-family:var(--mono);font-size:13.5px}
+.callout{margin:20px 0;padding:14px 18px;background:var(--accent-soft);
+  border-left:3px solid var(--accent);border-radius:0 8px 8px 0;color:var(--text-dim);font-size:14.5px}
+.callout strong{color:var(--accent)}
+.table-wrap{overflow-x:auto;margin:20px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;background:var(--bg-card);border-radius:10px;overflow:hidden}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border-soft);vertical-align:top}
+th{background:var(--accent-soft);color:var(--text);font-weight:700;font-size:13px}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--accent-soft)}
+
+/* code */
+.code-wrap{margin:20px 0;background:var(--bg-code);border:1px solid var(--border);border-radius:11px;overflow:hidden;box-shadow:var(--shadow)}
+.code-head{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;
+  background:color-mix(in srgb,var(--bg-card) 80%,transparent);border-bottom:1px solid var(--border-soft)}
+.code-lang{font-size:11px;color:var(--text-faint);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px}
+.copy-btn{background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;
+  padding:3px 10px;font-size:11.5px;cursor:pointer;transition:.15s}
+.copy-btn:hover{color:var(--accent);border-color:var(--accent)}
+.copy-btn.done{color:var(--accent2);border-color:var(--accent2)}
+pre{margin:0;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.65}
+pre::-webkit-scrollbar{height:8px}
+pre::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.code-body{color:var(--text);white-space:pre}
+.kw{color:var(--code-kw);font-weight:600}
+.st{color:var(--code-st)}
+.nm{color:var(--code-nm)}
+.cm{color:var(--code-cm);font-style:italic}
+
+/* back to top */
+#toTop{position:fixed;right:24px;bottom:26px;width:44px;height:44px;border-radius:50%;
+  background:var(--accent);color:#fff;border:0;font-size:20px;cursor:pointer;box-shadow:var(--shadow);
+  opacity:0;pointer-events:none;transition:.25s;z-index:130}
+#toTop.show{opacity:1;pointer-events:auto}
+
+/* overlay */
+.overlay{display:none;position:fixed;inset:56px 0 0;background:rgba(0,0,0,.5);z-index:90}
+
+@media(max-width:960px){
+  .menu-btn{display:block}
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .overlay.show{display:block}
+  .hero{padding-top:44px}
+  .hero h1{font-size:31px}
+}
+@media print{.sidebar,.topbar,#toTop,#progress,.overlay{display:none!important}.main{margin-left:0}}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="目录">&#9776;</button>
+  <div class="brand"><span class="logo">CTF</span><span>Reverse 讲义 <small>网页版</small></span></div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="expandBtn" title="展开/收起目录">展开目录</button>
+  <button class="icon-btn" id="themeBtn" title="切换主题">🌙 暗色</button>
+</div>
+<div class="overlay" id="overlay"></div>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <input class="search" id="search" type="text" placeholder="搜索目录…  例如：脱壳、花指令、TEA">
+      <div class="sidebar-hint">点击章节跳转 · 滚动自动高亮当前位置</div>
+    </div>
+    <nav class="toc" id="toc" aria-label="文档目录"></nav>
+  </aside>
+  <main class="main">
+    <header class="hero">
+      <div class="kicker">Capture The Flag · Reverse</div>
+      <h1>CTF Reverse 方向系统讲义</h1>
+      <p>从汇编基础到脱壳、VM 与实战的系统化学习路径 · 原理讲解 + 工具使用 + 典型例题 + 解题思路</p>
+      <div class="tags">
+        <span class="tag">进制与数据基础</span><span class="tag">PE / ELF 结构</span>
+        <span class="tag">x86/x64 汇编</span><span class="tag">IDA / Ghidra</span>
+        <span class="tag">动态调试</span><span class="tag">算法识别</span>
+        <span class="tag">花指令与反调试</span><span class="tag">脱壳与 VM</span>
+        <span class="tag">符号执行 / Z3</span><span class="tag">综合实战</span><span class="tag">解题思维方法论</span>
+      </div>
+      <div class="stat">
+        <div><b>33</b>讲 + 5 附录</div><div><b>232</b>目录条目</div>
+        <div><b>53</b>代码示例</div><div><b>原理+实战</b>讲解方式</div>
+      </div>
+    </header>
+    <article class="article" id="article">
+<blockquote class="callout">一份从零基础到实战的逆向工程学习笔记：原理讲解 + 工具使用 + 典型例题 + 解题思路。适用于 CTF Reverse 方向的系统化学习。</blockquote>
+<h2 id="sec-1" class="hd hd-1">第 0 讲 这份讲义怎么用</h2>
+<p>逆向是一门"手艺活"，光看书记不住，必须动手。这份讲义的组织顺序是：先建立底层的世界观（数据、汇编、可执行文件），再掌握工具（静态反汇编、动态调试），然后学习识别代码中常见的模式（算法、校验逻辑），最后通过脱壳、去混淆、实战题目把知识串起来。</p>
+<p><strong>建议你这样使用：</strong></p>
+<ol>
+<li>第一遍通读，遇到不懂的汇编指令不要慌，先建立整体印象；</li>
+<li>第二遍边读边打开工具，照着"动手做"小节复现；</li>
+<li>之后把这份讲义当成字典，做题卡住时按图索骥。</li>
+</ol>
+<p>每一讲末尾的"动手做"不是装饰，而是把知识转化为能力的关键环节。Reverse 的提升曲线几乎完全取决于你调试过的程序数量。</p>
+<h2 id="sec-2" class="hd hd-1">第 1 讲 逆向工程与 CTF Reverse 概览</h2>
+<h3 id="sec-3" class="hd hd-2">1.1 什么是逆向工程</h3>
+<p>逆向工程（Reverse Engineering）是"从结果反推过程"：给你一个已经编译好的程序（二进制文件），在没有源代码的情况下，搞清楚它做了什么、怎么做的。</p>
+<p>编译是一个"丢失信息"的过程：变量名消失了，注释消失了，高级结构被摊平成跳转和比较。逆向要做的，就是从这些残存的线索中重建程序的逻辑。</p>
+<h3 id="sec-4" class="hd hd-2">1.2 CTF 中的 Reverse 题型版图</h3>
+<p>CTF 里的 Reverse 题大致可以分为这几类：</p>
+<div class='table-wrap'><table><thead><tr><th>题型</th><th>特点</th><th>核心能力</th></tr></thead><tbody>
+<tr><td>CrackMe / 注册机</td><td>输入一串内容，程序校验是否正确</td><td>找比较逻辑、算法还原</td></tr>
+<tr><td>flag 校验器</td><td>把 flag 变换后与常量比较</td><td>静态分析 + 算法识别</td></tr>
+<tr><td>算法逆向</td><td>自定义加密/编码，需要写出逆过程</td><td>密码学基础 + 代码还原</td></tr>
+<tr><td>加壳程序</td><td>真正的逻辑被壳包裹、运行时解压</td><td>脱壳、找 OEP</td></tr>
+<tr><td>混淆 / 花指令</td><td>大量无意义代码干扰分析</td><td>去混淆、模式识别</td></tr>
+<tr><td>VM 虚拟机题</td><td>自定义指令集解释执行</td><td>逆向虚拟机、还原字节码</td></tr>
+<tr><td>多语言 / 跨平台</td><td>.NET、Java、Python 打包</td><td>对应语言的字节码逆向</td></tr>
+</tbody></table></div>
+<h3 id="sec-5" class="hd hd-2">1.3 逆向与其他方向的关系</h3>
+<ul>
+<li>与 <strong>PWN</strong> 的关系：PWN 需要找漏洞，逆向帮你理解程序逻辑；PWN 面对的多是 ELF，逆向则 PE/ELF 都要接触。</li>
+<li>与 <strong>Crypto</strong> 的关系：逆向里经常遇到"魔改"的经典算法，识别出算法再套用密码学知识，往往一步到位。</li>
+<li>与 <strong>Web</strong> 的关系：JS 混淆、Wasm 逆向是两者的交叉地带。</li>
+</ul>
+<h3 id="sec-6" class="hd hd-2">1.4 动手做</h3>
+<ol>
+<li>找一个你熟悉的简单程序（比如自己写的"输入用户名输出欢迎语"的小程序），用文本编辑器打开它的可执行文件，观察里面能直接看到哪些字符串。</li>
+<li>思考：编译之后，源代码里的变量名还剩下吗？函数名呢？字符串常量呢？</li>
+</ol>
+<h2 id="sec-7" class="hd hd-1">第 2 讲 数据与进制基础</h2>
+<h3 id="sec-8" class="hd hd-2">2.1 为什么逆向离不开十六进制</h3>
+<p>计算机内部一切都是二进制，但二进制太长难读。十六进制（hex）每 4 位对应一个十六进制字符，是二进制的"缩写"。逆向工具里地址、机器码、内存内容几乎都用十六进制显示。</p>
+<p>记忆表：<code>0x0</code>=0000, <code>0x1</code>=0001, …, <code>0x9</code>=1001, <code>0xA</code>=1010, <code>0xB</code>=1011, <code>0xC</code>=1100, <code>0xD</code>=1101, <code>0xE</code>=1110, <code>0xF</code>=1111。</p>
+<h3 id="sec-9" class="hd hd-2">2.2 位、字节、字与双字</h3>
+<div class='table-wrap'><table><thead><tr><th>单位</th><th>大小</th><th>说明</th></tr></thead><tbody>
+<tr><td>bit（位）</td><td>1 位</td><td>最小单位</td></tr>
+<tr><td>byte（字节）</td><td>8 位</td><td>内存寻址的最小单位</td></tr>
+<tr><td>word（字）</td><td>2 字节</td><td>16 位</td></tr>
+<tr><td>dword（双字）</td><td>4 字节</td><td>32 位</td></tr>
+<tr><td>qword（四字）</td><td>8 字节</td><td>64 位</td></tr>
+</tbody></table></div>
+<p><strong>关键概念：内存是按字节编址的</strong>。每个字节有一个唯一的地址，CPU 读写内存都以字节为单位。</p>
+<h3 id="sec-10" class="hd hd-2">2.3 字节序：大端与小端</h3>
+<p>一个多字节数据存放在内存里时，字节的排列顺序有两种：</p>
+<ul>
+<li><strong>小端序（Little-Endian）</strong>：低位字节放在低地址。x86、x86-64 平台都是小端。</li>
+<li><strong>大端序（Big-Endian）</strong>：高位字节放在低地址。网络协议、部分 ARM/MIPS 平台使用。</li>
+</ul>
+<p>例如 32 位整数 <code>0x12345678</code>，在小端机器上内存中从低地址到高地址依次是：<code>78 56 34 12</code>。</p>
+<blockquote class="callout">逆向时最常见的困惑之一：在内存窗口里看到的字节顺序和反汇编里显示的常量"对不上"，多半就是字节序在作怪。</blockquote>
+<h3 id="sec-11" class="hd hd-2">2.4 ASCII、UTF-8 与宽字符</h3>
+<ul>
+<li>ASCII：单字节编码，范围 0-127，字母数字和标点。</li>
+<li>UTF-8：变长编码，兼容 ASCII，中文通常占 3 字节。</li>
+<li>UTF-16（Windows 下的宽字符 wchar_t）：常用字符占 2 字节，小端存储。</li>
+</ul>
+<p>在 IDA / x64dbg 里查看字符串时，要注意区分 ASCII 和 Unicode（UTF-16）字符串，否则会看到一堆乱码或错位字符。</p>
+<h3 id="sec-12" class="hd hd-2">2.5 有符号数与补码</h3>
+<p>计算机用补码表示负数：对一个正数按位取反再加一。32 位下 <code>-1</code> 的补码是 <code>0xFFFFFFFF</code>。</p>
+<p>有符号与无符号的区别在逆向中很关键：同一段二进制数据，<code>cmp</code> 之后的跳转指令不同——<code>jg/jl</code> 用于有符号数，<code>ja/jb</code> 用于无符号数。识别这一点常常能帮你判断变量的类型。</p>
+<h3 id="sec-13" class="hd hd-2">2.6 动手做</h3>
+<ol>
+<li>用计算器把 <code>0xdeadbeef</code> 转换成十进制和二进制。</li>
+<li>在小端机器上，int 变量 <code>0x11223344</code> 的内存字节序列是什么？</li>
+<li>在 x64dbg 的内存窗口中找一个字符串，分别用 ASCII 和 Unicode 模式查看，观察差别。</li>
+</ol>
+<h2 id="sec-14" class="hd hd-1">第 3 讲 可执行文件结构：PE、ELF 与 Mach-O</h2>
+<h3 id="sec-15" class="hd hd-2">3.1 程序是如何从源码变成可执行文件的</h3>
+<p>以 C 语言为例，从 <code>main.c</code> 到可执行文件经过四个阶段：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">main.c --预处理--&gt; main.i --编译--&gt; main.s --汇编--&gt; main.o --链接--&gt; a.out / prog.exe</code></pre></div>
+<ul>
+<li>预处理：展开宏、头文件。</li>
+<li>编译：高级语言变成汇编。</li>
+<li>汇编：汇编变成机器码（目标文件）。</li>
+<li>链接：把多个目标文件和库拼成一个可执行文件，解决符号引用。</li>
+</ul>
+<h3 id="sec-16" class="hd hd-2">3.2 PE 文件结构</h3>
+<p>PE（Portable Executable）是 Windows 下的可执行文件格式。关键结构：</p>
+<ul>
+<li><strong>DOS 头</strong>：开头是 <code>MZ</code> 标志，兼容老 DOS 系统。</li>
+<li><strong>PE 头</strong>：包含机器类型、节数量、入口点（OEP）等。</li>
+<li><strong>节表（Section Table）</strong>：描述每个节的名称、大小、属性。常见节：</li>
+<li><code>.text</code>：代码</li>
+<li><code>.data</code> / <code>.rdata</code>：数据 / 只读数据</li>
+<li><code>.rsrc</code>：资源（图标、对话框等）</li>
+<li><code>.idata</code>：导入表</li>
+<li><strong>导入表（Import Table）</strong>：程序调用了哪些 DLL 的哪些函数。这是逆向的黄金线索——看到 <code>MessageBoxA</code> 就知道程序要弹窗，看到 <code>GetDlgItemTextA</code> 就知道在读取输入框。</li>
+</ul>
+<h3 id="sec-17" class="hd hd-2">3.3 ELF 文件结构</h3>
+<p>ELF（Executable and Linkable Format）是 Linux 下的可执行文件格式。开头是 <code>7f 45 4c 46</code>（即 <code>\x7fELF</code>）。关键结构：</p>
+<ul>
+<li>ELF Header：架构、入口地址、程序头/节头偏移。</li>
+<li>Program Headers：描述段（segment），运行时加载用。</li>
+<li>Section Headers：描述节（section），链接和分析用。</li>
+<li>常见节：<code>.text</code>、<code>.rodata</code>、<code>.data</code>、<code>.bss</code>、<code>.plt</code>（过程链接表）、<code>.got</code>（全局偏移表）、<code>.dynsym</code>（动态符号表）。</li>
+</ul>
+<h3 id="sec-18" class="hd hd-2">3.4 节与段、导入表、导出表、资源</h3>
+<ul>
+<li><strong>节（Section）</strong> 是链接视角的组织单位，<strong>段（Segment）</strong> 是加载视角的组织单位。一个段通常包含多个节。</li>
+<li><strong>导出表（Export Table）</strong>：DLL 对外暴露的函数。分析 DLL 时首先看导出表。</li>
+<li><strong>资源（Resource）</strong>：对话框、字符串、图标等，有时 flag 就藏在资源里。</li>
+</ul>
+<h3 id="sec-19" class="hd hd-2">3.5 如何快速判断文件类型与架构</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">bash</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">file ./program          # 查看文件类型、架构、是否静态链接
+readelf -h ./program    # 查看 ELF 头
+readelf -S ./program    # 查看所有节
+objdump -d ./program    # 反汇编</code></pre></div>
+<p>Windows 下用 <strong>Detect It Easy（DIE）</strong> 可以图形化地查看文件类型、编译器、是否加壳。</p>
+<h3 id="sec-20" class="hd hd-2">3.6 动手做</h3>
+<ol>
+<li>随便找一个系统可执行文件，用 <code>file</code> 和 DIE 查看它，记录架构、编译器、节信息。</li>
+<li>在 DIE 里查看导入表，列出 5 个你觉得"有意思"的 API 函数。</li>
+</ol>
+<h2 id="sec-21" class="hd hd-1">第 4 讲 x86/x64 汇编基础</h2>
+<h3 id="sec-22" class="hd hd-2">4.1 为什么要学汇编</h3>
+<p>反汇编器输出的是汇编代码，F5 伪代码虽然友好但会丢失细节（比如精确的栈布局、隐藏的算术技巧）。<strong>能读懂汇编，是逆向从"能用工具"到"能做题"的分水岭。</strong></p>
+<h3 id="sec-23" class="hd hd-2">4.2 寄存器</h3>
+<p>32 位 x86 主要寄存器：</p>
+<div class='table-wrap'><table><thead><tr><th>寄存器</th><th>名称</th><th>常见用途</th></tr></thead><tbody>
+<tr><td>EAX</td><td>累加器</td><td>返回值、算术运算</td></tr>
+<tr><td>EBX</td><td>基址寄存器</td><td>通用</td></tr>
+<tr><td>ECX</td><td>计数寄存器</td><td>循环计数、<code>rep</code> 指令</td></tr>
+<tr><td>EDX</td><td>数据寄存器</td><td>乘除法、辅助运算</td></tr>
+<tr><td>ESI / EDI</td><td>源/目的变址</td><td>字符串操作</td></tr>
+<tr><td>ESP</td><td>栈指针</td><td>指向栈顶</td></tr>
+<tr><td>EBP</td><td>基址指针</td><td>访问栈上局部变量和参数</td></tr>
+<tr><td>EIP</td><td>指令指针</td><td>下一条要执行的指令地址</td></tr>
+</tbody></table></div>
+<p>64 位下对应扩展为 RAX、RBX、…、RSP、RBP、RIP，并新增 R8-R15。32 位寄存器仍是 64 位寄存器的低半部分（如 EAX 是 RAX 的低 32 位）。</p>
+<h3 id="sec-24" class="hd hd-2">4.3 寻址方式</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">asm</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">mov eax, 0x10            ; 立即数寻址
+mov eax, ebx             ; 寄存器寻址
+mov eax, [0x401000]      ; 直接寻址：读取该地址的内容
+mov eax, [ebx+4]         ; 寄存器间接 + 偏移
+mov eax, [ebx+esi*4+8]   ; 基址 + 变址*比例 + 位移（访问数组常用）</code></pre></div>
+<p>最后一种 <code>[基址 + 索引*比例因子 + 位移]</code> 是访问数组元素的典型模式，识别它就能还原出"数组下标访问"。</p>
+<h3 id="sec-25" class="hd hd-2">4.4 常用指令</h3>
+<div class='table-wrap'><table><thead><tr><th>类别</th><th>指令</th><th>说明</th></tr></thead><tbody>
+<tr><td>数据传送</td><td><code>mov</code> <code>push</code> <code>pop</code> <code>lea</code></td><td><code>lea</code> 常用来算地址，如 <code>lea eax,[ebx+4]</code></td></tr>
+<tr><td>算术</td><td><code>add</code> <code>sub</code> <code>mul</code> <code>imul</code> <code>div</code> <code>idiv</code> <code>inc</code> <code>dec</code> <code>neg</code></td><td>加减乘除</td></tr>
+<tr><td>逻辑</td><td><code>and</code> <code>or</code> <code>xor</code> <code>not</code> <code>shl</code> <code>shr</code> <code>sar</code></td><td>位运算，Flag 常出现在这里</td></tr>
+<tr><td>比较跳转</td><td><code>cmp</code> <code>test</code> <code>jmp</code> <code>je/jz</code> <code>jne/jnz</code> <code>jg</code> <code>jl</code> <code>ja</code> <code>jb</code></td><td>控制流的核心</td></tr>
+<tr><td>调用返回</td><td><code>call</code> <code>ret</code></td><td>函数调用</td></tr>
+<tr><td>串操作</td><td><code>movs</code> <code>stos</code> <code>cmps</code> <code>scas</code>（配合 <code>rep</code>）</td><td>批量内存操作</td></tr>
+</tbody></table></div>
+<p><code>xor eax, eax</code> 是"把 eax 清零"的常见写法，比 <code>mov eax, 0</code> 更短更快。</p>
+<h3 id="sec-26" class="hd hd-2">4.5 栈操作与函数调用</h3>
+<p>栈是向低地址增长的。<code>push</code> 使 ESP 减小，<code>pop</code> 使 ESP 增大。</p>
+<p>一次典型的函数调用（<code>call func</code>）做了两件事：</p>
+<ol>
+<li>把返回地址（<code>call</code> 下一条指令的地址）压栈；</li>
+<li>跳转到目标函数。</li>
+</ol>
+<p>函数结束时 <code>ret</code> 从栈顶弹出返回地址并跳回。</p>
+<h3 id="sec-27" class="hd hd-2">4.6 动手做</h3>
+<ol>
+<li>用 <code>gcc -S</code> 或 MSVC <code>/Fa</code> 把一个简单 C 函数编译成汇编，对照源码逐行理解。</li>
+<li>解释以下指令序列做了什么：</li>
+</ol>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">asm</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">mov eax, [ebp-4]
+xor eax, 0xdeadbeef
+cmp eax, 0x12345678
+jne short loc_401020</code></pre></div>
+<h2 id="sec-28" class="hd hd-1">第 5 讲 从 C 代码到汇编：控制流与栈帧</h2>
+<h3 id="sec-29" class="hd hd-2">5.1 顺序、分支、循环在汇编里的样子</h3>
+<p><strong>if-else：</strong></p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">if (x &gt; 5) { a = 1; } else { a = 2; }</code></pre></div>
+<p>对应的汇编模式通常是：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">asm</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">cmp [x], 5
+jle  else_branch
+mov  [a], 1
+jmp  end
+else_branch:
+mov  [a], 2
+end:</code></pre></div>
+<p>记住：<strong>比较指令之后紧跟的条件跳转，往往表达了相反的条件</strong>。<code>cmp x,5; jle else</code> 意味着"x&lt;=5 时跳到 else"，也就是"x&gt;5 才执行 then"。</p>
+<p><strong>for 循环：</strong></p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">for (int i = 0; i &lt; 10; i++) sum += i;</code></pre></div>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">asm</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">mov [i], 0
+jmp check
+loop_body:
+mov eax, [sum]
+add eax, [i]
+mov [sum], eax
+inc [i]
+check:
+cmp [i], 10
+jl  loop_body</code></pre></div>
+<p>识别循环的关键是找到"回边"（跳向低地址的跳转）和递增/递减指令。</p>
+<h3 id="sec-30" class="hd hd-2">5.2 栈帧与调用约定</h3>
+<p>每次函数调用都会在栈上建立一个新的栈帧，用于存放局部变量、参数、返回地址。</p>
+<p>32 位 x86 常见调用约定：</p>
+<div class='table-wrap'><table><thead><tr><th>约定</th><th>参数传递</th><th>栈清理者</th><th>常见于</th></tr></thead><tbody>
+<tr><td>cdecl</td><td>全部压栈</td><td>调用者</td><td>C/C++ 默认</td></tr>
+<tr><td>stdcall</td><td>全部压栈</td><td>被调用者</td><td>Win32 API</td></tr>
+<tr><td>fastcall</td><td>前两个参数放 ECX/EDX</td><td>被调用者</td><td>性能敏感代码</td></tr>
+<tr><td>thiscall</td><td>this 指针放 ECX</td><td>被调用者</td><td>C++ 成员函数</td></tr>
+</tbody></table></div>
+<p>64 位 Windows（x64 调用约定）：前四个参数依次放 RCX、RDX、R8、R9，其余压栈；调用者还要在栈上预留 32 字节的"shadow space"。</p>
+<p>64 位 Linux（System V AMD64 ABI）：前六个参数依次放 RDI、RSI、RDX、RCX、R8、R9，其余压栈。</p>
+<blockquote class="callout">逆向时判断参数个数和类型，很大程度上依赖调用约定。看到 <code>mov rdi, ...</code> 后面跟一个 <code>call</code>，基本可以确定第一个参数是它。</blockquote>
+<h3 id="sec-31" class="hd hd-2">5.3 参数传递与返回值</h3>
+<p>返回值通常放 EAX/RAX。浮点数用 XMM0 返回。大结构体可能通过隐藏指针参数传递。</p>
+<p>在栈帧里，32 位下典型的布局（EBP 为基准）：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">高地址  [参数2] [参数1] [返回地址] [旧EBP] [局部变量1] [局部变量2]  低地址
+                                          ^EBP</code></pre></div>
+<p>因此 <code>[ebp+8]</code> 是第一个参数，<code>[ebp-4]</code> 是第一个局部变量。</p>
+<h3 id="sec-32" class="hd hd-2">5.4 识别 switch、if-else、for</h3>
+<p>编译器优化 switch 时常生成<strong>跳转表</strong>：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">asm</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">mov eax, [arg]
+cmp eax, 3
+ja  default
+jmp [jump_table + eax*4]</code></pre></div>
+<p>看到"单个比较 + 通过表间接跳转"，十有八九是 switch。</p>
+<h3 id="sec-33" class="hd hd-2">5.5 动手做</h3>
+<ol>
+<li>编译以下 C 代码并反汇编，找出对应的比较和跳转：</li>
+</ol>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">int classify(int x) {
+  if (x &lt; 0) return -1;
+  else if (x == 0) return 0;
+  else return 1;
+}</code></pre></div>
+<ol>
+<li>在 IDA 里打开自己编译的程序，用 F5 查看伪代码，然后切回汇编视图，逐句对照。</li>
+</ol>
+<h2 id="sec-34" class="hd hd-1">第 6 讲 逆向工具链总览</h2>
+<h3 id="sec-35" class="hd hd-2">6.1 静态分析与动态分析</h3>
+<ul>
+<li><strong>静态分析</strong>：不运行程序，直接分析文件。安全、可全局观察，但面对混淆/加壳困难。</li>
+<li><strong>动态分析</strong>：运行程序，在调试器中观察寄存器、内存、API 调用。能看到真实的运行时行为，但只覆盖执行到的路径。</li>
+</ul>
+<p><strong>两者结合才是正道</strong>。常规流程：先静态看字符串和导入表定位重点，再动态调试验证。</p>
+<h3 id="sec-36" class="hd hd-2">6.2 反汇编器：IDA / Ghidra / radare2 / objdump</h3>
+<div class='table-wrap'><table><thead><tr><th>工具</th><th>特点</th><th>适用场景</th></tr></thead><tbody>
+<tr><td>IDA Pro</td><td>业界标杆，F5 伪代码强大，插件生态丰富</td><td>主力工具</td></tr>
+<tr><td>Ghidra</td><td>NSA 开源，免费，反编译质量高</td><td>免费替代、大项目</td></tr>
+<tr><td>radare2 / rizin</td><td>开源、命令行、脚本化</td><td>自动化、脚本分析</td></tr>
+<tr><td>objdump</td><td>系统自带，快速查看</td><td>简单查看</td></tr>
+<tr><td>Binary Ninja</td><td>现代化 UI，脚本友好</td><td>备选主力</td></tr>
+</tbody></table></div>
+<h3 id="sec-37" class="hd hd-2">6.3 调试器：x64dbg / GDB / WinDbg</h3>
+<ul>
+<li><strong>x64dbg</strong>：Windows 下最流行的用户态调试器，界面友好，支持 32/64 位。</li>
+<li><strong>OllyDbg</strong>：经典 32 位调试器，界面直观，但不支持 64 位。</li>
+<li><strong>GDB</strong>：Linux 下主力，命令行，配合 pwndbg/gef 插件更好用。</li>
+<li><strong>WinDbg</strong>：微软官方，内核调试必备。</li>
+</ul>
+<h3 id="sec-38" class="hd hd-2">6.4 辅助工具：DIE、PEiD、Resource Hacker、API Monitor</h3>
+<ul>
+<li><strong>Detect It Easy (DIE)</strong>：识别文件类型、编译器、壳。</li>
+<li><strong>PEiD</strong>：老牌查壳工具（较旧，但仍常用）。</li>
+<li><strong>Resource Hacker</strong>：查看/提取 PE 资源。</li>
+<li><strong>API Monitor / Process Monitor</strong>：监控程序调用的 API 和文件/注册表操作。</li>
+<li><strong>010 Editor</strong>：十六进制编辑器，配合模板解析文件结构。</li>
+</ul>
+<h3 id="sec-39" class="hd hd-2">6.5 环境搭建建议</h3>
+<ol>
+<li>一台 Windows 虚拟机（用于分析 PE、运行 Windows 程序），装好 x64dbg、IDA、DIE、010 Editor。</li>
+<li>一套 Linux 环境（WSL 或虚拟机），装好 gdb、radare2、objdump。</li>
+<li>Python 3 + 常用库：<code>capstone</code>（反汇编）、<code>unicorn</code>（模拟执行）、<code>z3</code>（约束求解）、<code>pyelftools</code>、<code>pefile</code>。</li>
+</ol>
+<h3 id="sec-40" class="hd hd-2">6.6 动手做</h3>
+<ol>
+<li>安装 DIE 和 x64dbg，打开同一个程序，分别记录：DIE 报告的编译器/壳信息、x64dbg 中模块入口点的第一条指令。</li>
+<li>用 <code>pip install capstone</code> 安装 capstone，尝试把一段十六进制机器码反汇编成汇编。</li>
+</ol>
+<h2 id="sec-41" class="hd hd-1">第 7 讲 IDA Pro 从入门到熟练</h2>
+<h3 id="sec-42" class="hd hd-2">7.1 初次打开一个程序</h3>
+<p>用 IDA 打开可执行文件时会弹出加载对话框，注意几个选项：</p>
+<ul>
+<li>勾选 <strong>Create imports segment</strong>（默认）；</li>
+<li>如程序有调试符号，IDA 会自动利用；</li>
+<li>分析完成后进入主界面。</li>
+</ul>
+<h3 id="sec-43" class="hd hd-2">7.2 常用视图与窗口</h3>
+<ul>
+<li><strong>IDA View</strong>：反汇编主窗口，图形视图（F5 切换）和文本视图（空格切换）。</li>
+<li><strong>Pseudocode（F5）</strong>：伪代码窗口，把函数反编译成类 C 代码。</li>
+<li><strong>Imports / Exports</strong>：导入导出函数表。</li>
+<li><strong>Strings（Shift+F12）</strong>：所有字符串，双击可跳到引用位置。</li>
+<li><strong>Functions（Shift+F3）</strong>：函数列表。</li>
+<li><strong>Hex Dump（Shift+F4）</strong>：十六进制窗口。</li>
+</ul>
+<h3 id="sec-44" class="hd hd-2">7.3 关键快捷键</h3>
+<div class='table-wrap'><table><thead><tr><th>快捷键</th><th>功能</th></tr></thead><tbody>
+<tr><td><code>F5</code></td><td>反编译当前函数为伪代码</td></tr>
+<tr><td><code>空格</code></td><td>图形视图 / 文本视图切换</td></tr>
+<tr><td><code>X</code></td><td>查看交叉引用（谁调用了这里 / 这里引用了谁）</td></tr>
+<tr><td><code>N</code></td><td>重命名变量 / 函数</td></tr>
+<tr><td><code>;</code></td><td>添加注释</td></tr>
+<tr><td><code>Y</code></td><td>设置变量类型</td></tr>
+<tr><td><code>Shift+F12</code></td><td>字符串列表</td></tr>
+<tr><td><code>G</code></td><td>跳转到指定地址</td></tr>
+<tr><td><code>F7/F8</code></td><td>单步进入 / 单步跳过（调试时）</td></tr>
+<tr><td><code>F2</code></td><td>下断点</td></tr>
+</tbody></table></div>
+<h3 id="sec-45" class="hd hd-2">7.4 F5 伪代码与交叉引用</h3>
+<p>F5 是 IDA 最强大的功能，但<strong>不要完全信任它</strong>：</p>
+<ul>
+<li>伪代码会丢失精确的位运算细节；</li>
+<li>编译器优化可能产生难懂的表达式；</li>
+<li>有些跳转会被反编译成奇怪的 <code>if</code> 嵌套。</li>
+</ul>
+<p><strong>交叉引用（Xrefs）</strong> 是定位关键代码的核心手段：在字符串窗口双击 <code>"input the flag"</code>，按 <code>X</code> 查看哪里引用了它，就能找到校验函数。</p>
+<h3 id="sec-46" class="hd hd-2">7.5 重命名、注释与结构体</h3>
+<p>逆向的本质是"给无名的东西命名"。把 <code>sub_401000</code> 改名为 <code>check_flag</code>，把 <code>v4</code> 改名为 <code>input_len</code>，代码立刻变得可读。</p>
+<p>对于复杂数据结构，可以在 Local Types 里定义结构体，然后在反汇编中按 <code>T</code> 应用，让 <code>[ebp-0x20]+4</code> 变成 <code>user.name</code> 这样的字段访问。</p>
+<h3 id="sec-47" class="hd hd-2">7.6 动手做</h3>
+<ol>
+<li>用 IDA 打开一个 CrackMe，在字符串窗口找到提示输入 flag 的字符串。</li>
+<li>用交叉引用定位到使用它的函数，F5 反编译，把关键函数重命名。</li>
+</ol>
+<h2 id="sec-48" class="hd hd-1">第 8 讲 Ghidra 与其他反汇编器</h2>
+<h3 id="sec-49" class="hd hd-2">8.1 Ghidra 项目与导入</h3>
+<p>Ghidra 以"项目"为单位管理文件。新建项目后，把可执行文件拖入即可自动分析。分析选项里可以开启"Decompiler Parameter ID"以获得更好的参数识别。</p>
+<h3 id="sec-50" class="hd hd-2">8.2 CodeBrowser 与反编译窗口</h3>
+<ul>
+<li><strong>Listing</strong>：反汇编窗口。</li>
+<li><strong>Decompiler</strong>：反编译窗口，与 Listing 联动（点击一处，另一处同步高亮）。</li>
+<li><strong>Symbol Tree</strong>：函数、导入、导出、数据类型的树形结构。</li>
+<li><strong>Defined Strings</strong>：字符串列表。</li>
+</ul>
+<p>Ghidra 的反编译质量很高，尤其是循环和指针运算的还原。缺点是界面响应较慢。</p>
+<h3 id="sec-51" class="hd hd-2">8.3 脚本与批量分析</h3>
+<p>Ghidra 支持 Java 和 Python（Jython）脚本，可以批量处理函数、自动重命名、提取特征。对于大量样本的分析非常有用。</p>
+<h3 id="sec-52" class="hd hd-2">8.4 radare2 / rizin 速览</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">bash</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">r2 ./program        # 打开文件
+aaa                 # 分析所有函数
+afl                 # 列出函数
+pdf @ main          # 反汇编 main 函数
+izz                 # 列出所有字符串</code></pre></div>
+<p>radare2 学习曲线陡峭，但脚本化能力强，适合自动化场景。</p>
+<h3 id="sec-53" class="hd hd-2">8.5 动手做</h3>
+<ol>
+<li>用 Ghidra 打开同一个 CrackMe，对比它和 IDA 的伪代码，看看哪个更接近源码。</li>
+<li>尝试写一个 Ghidra 脚本，把所有 <code>sub_</code> 开头的函数重命名为你自己的命名。</li>
+</ol>
+<h2 id="sec-54" class="hd hd-1">第 9 讲 动态调试基础</h2>
+<h3 id="sec-55" class="hd hd-2">9.1 为什么要动态调试</h3>
+<p>静态分析看不到程序的"真实行为"：</p>
+<ul>
+<li>自修改代码、加壳程序只有在运行时才解压出真实代码；</li>
+<li>算法可能依赖运行时输入、随机数、时间；</li>
+<li>想验证某个函数究竟返回什么，直接下断点看寄存器最快。</li>
+</ul>
+<h3 id="sec-56" class="hd hd-2">9.2 断点类型</h3>
+<div class='table-wrap'><table><thead><tr><th>类型</th><th>说明</th><th>适用</th></tr></thead><tbody>
+<tr><td>软件断点（INT3）</td><td>把目标字节改成 <code>0xCC</code></td><td>普通代码断点</td></tr>
+<tr><td>硬件断点</td><td>利用 CPU 调试寄存器 DR0-DR7</td><td>不可修改的代码（如只读段）、数据断点</td></tr>
+<tr><td>内存断点</td><td>对内存页设置保护属性</td><td>监控某块内存被读/写</td></tr>
+</tbody></table></div>
+<h3 id="sec-57" class="hd hd-2">9.3 单步与运行控制</h3>
+<ul>
+<li><code>F7</code>（Step Into）：进入函数内部。</li>
+<li><code>F8</code>（Step Over）：跳过函数调用。</li>
+<li><code>F9</code>（Run）：运行到断点。</li>
+<li><code>Ctrl+F7/F8</code>（Run to return）：执行到当前函数返回。</li>
+</ul>
+<h3 id="sec-58" class="hd hd-2">9.4 观察与修改寄存器/内存</h3>
+<p>调试器里可以：</p>
+<ul>
+<li>查看/修改寄存器（双击寄存器值即可编辑）；</li>
+<li>查看栈窗口，跟随 ESP/EBP；</li>
+<li>在内存窗口搜索字节序列或字符串；</li>
+<li>把 EIP 改成任意地址，强行改变执行流程。</li>
+</ul>
+<blockquote class="callout">修改 EIP 或寄存器来跳过校验，是逆向做题的"暴力美学"，但在需要还原算法的题目里，这只是辅助手段，最终还是要写出正确的 flag。</blockquote>
+<h3 id="sec-59" class="hd hd-2">9.5 x64dbg 实战</h3>
+<p>典型流程：</p>
+<ol>
+<li>打开程序，停在入口点；</li>
+<li>在字符串窗口搜索关键提示，双击跳到引用处；</li>
+<li>在比较指令（如 <code>call strcmp</code> 或 <code>cmp</code>）处下断点；</li>
+<li>运行程序，输入测试数据；</li>
+<li>断下后观察参数（栈或寄存器）指向的字符串。</li>
+</ol>
+<h3 id="sec-60" class="hd hd-2">9.6 GDB 实战</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">bash</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">gdb ./program        # 启动
+break main           # 在 main 下断点
+run                  # 运行
+x/s $rsi             # 查看 RSI 指向的字符串
+info registers       # 查看所有寄存器
+stepi / nexti        # 单步指令
+continue             # 继续运行</code></pre></div>
+<p>配合 pwndbg 插件后，<code>x/s</code>、<code>stack</code>、<code>regs</code> 等命令的输出会更直观。</p>
+<h3 id="sec-61" class="hd hd-2">9.7 动手做</h3>
+<ol>
+<li>写一个 Simple CrackMe：输入密码，正确则输出 "Correct"，否则输出 "Wrong"。编译后用 x64dbg 找到比较点，观察栈顶的参数。</li>
+<li>用硬件断点监控一个全局变量被写入的时刻（x64dbg 中右键 → 断点 → 硬件访问断点）。</li>
+</ol>
+<h2 id="sec-62" class="hd hd-1">第 10 讲 静态分析解题套路</h2>
+<h3 id="sec-63" class="hd hd-2">10.1 从字符串入手</h3>
+<p>绝大多数 CTF 题目都会有提示性字符串：<code>"Input flag:"</code>、<code>"Wrong!"</code>、<code>"Congratulations!"</code>。从字符串切入是最快的路径。</p>
+<p>在 IDA 中按 <code>Shift+F12</code> 打开字符串窗口，搜索关键词，双击后用 <code>X</code> 交叉引用找到代码位置。</p>
+<h3 id="sec-64" class="hd hd-2">10.2 定位 main 与关键函数</h3>
+<ul>
+<li>IDA 会在入口点（start）处调用 <code>__libc_start_main</code>（ELF）或 <code>mainCRTStartup</code>（PE），顺着参数就能找到 main。</li>
+<li>如果符号被剥离，可以从字符串引用或导入函数（如 <code>printf</code>）反向定位。</li>
+</ul>
+<h3 id="sec-65" class="hd hd-2">10.3 交叉引用与调用图</h3>
+<p>交叉引用回答两个问题：</p>
+<ul>
+<li><strong>谁调用了这里</strong>（Xrefs to）：找到入口。</li>
+<li><strong>这里调用了谁</strong>（Xrefs from）：了解数据流。</li>
+</ul>
+<p>在调用图（右键 → Xrefs chart）中可以看清函数间的调用关系，快速找到"核心校验函数"。</p>
+<h3 id="sec-66" class="hd hd-2">10.4 恢复控制流与数据结构</h3>
+<p>遇到复杂的伪代码时：</p>
+<ol>
+<li>先确认函数参数和返回值（<code>Y</code> 设置类型）；</li>
+<li>把明显的局部变量重命名；</li>
+<li>对数组访问 <code>[ebp-0x40 + eax*4]</code> 还原成 <code>arr[i]</code> 的心智模型；</li>
+<li>把函数按"输入 → 变换 → 比较"三阶段切分。</li>
+</ol>
+<h3 id="sec-67" class="hd hd-2">10.5 动手做</h3>
+<ol>
+<li>找一道入门 CrackMe（如 crackmes.one 上的 easy 级别），只用静态分析（IDA/Ghidra）找出正确密码，再运行程序验证。</li>
+<li>记录你从"打开程序"到"找到比较逻辑"用了哪几步，形成自己的解题清单。</li>
+</ol>
+<h2 id="sec-68" class="hd hd-1">第 11 讲 常见编码与算法识别（一）</h2>
+<p>识别算法的核心方法：<strong>看常量、看结构、看 API</strong>。特定算法会留下独特的"指纹"。</p>
+<h3 id="sec-69" class="hd hd-2">11.1 XOR 加密</h3>
+<p>XOR 是逆向中最常见的变换：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">for (int i = 0; i &lt; len; i++) {
+  buf[i] ^= 0x42;
+}</code></pre></div>
+<p>汇编里的标志是 <code>xor [reg+idx], imm</code> 出现在循环里。XOR 的特点是可逆：<code>a ^ k ^ k = a</code>。</p>
+<p>变体：</p>
+<ul>
+<li>递增密钥：<code>buf[i] ^= i</code>（用下标当密钥）</li>
+<li>多字节密钥：<code>buf[i] ^= key[i % keylen]</code></li>
+<li>自反馈：<code>buf[i] ^= buf[i-1]</code>（需要理解链式结构才能还原）</li>
+</ul>
+<h3 id="sec-70" class="hd hd-2">11.2 Base64 与自定义 base</h3>
+<p>Base64 的指纹：出现的常量字符串 <code>"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"</code>，或者位运算 <code>&gt;&gt; 2</code>、<code>&lt;&lt; 4</code>、<code>&lt;&lt; 2</code> 配合 <code>&amp; 0x3f</code>。</p>
+<p>自定义 Base64（换表）是 CTF 常客：把标准字母表换成乱序表。识别方法：找到类似 <code>table[...]</code> 的查表操作，把表 dump 出来，就能写出解码。</p>
+<h3 id="sec-71" class="hd hd-2">11.3 RC4</h3>
+<p>RC4 分为 KSA（初始化 S 盒）和 PRGA（生成密钥流）两个阶段。</p>
+<p>KSA 的典型代码：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">for (int i = 0; i &lt; 256; i++) S[i] = i;
+for (int i = 0, j = 0; i &lt; 256; i++) {
+  j = (j + S[i] + key[i % keylen]) % 256;
+  swap(S[i], S[j]);
+}</code></pre></div>
+<p>识别指纹：长度为 256 的数组、两次 <code>mod 256</code>（汇编里常是 <code>&amp; 0xFF</code>）、交换操作。PRGA 阶段则是 <code>S[i] + S[j]</code> 取字节与明文 XOR。</p>
+<h3 id="sec-72" class="hd hd-2">11.4 哈希算法特征（MD5/SHA）</h3>
+<p>哈希是单向的，逆向中通常是"算出输入的哈希与常量比较"，此时需要字典或暴力破解；或者程序里实现了哈希的逆过程（不多见）。</p>
+<p>MD5 的指纹：</p>
+<ul>
+<li>四个魔数 <code>0x67452301</code>, <code>0xefcdab89</code>, <code>0x98badcfe</code>, <code>0x10325476</code>；</li>
+<li>64 个常量 <code>0xd76aa478</code> 等（T 表）；</li>
+<li>大量 <code>rol</code>（循环左移）操作。</li>
+</ul>
+<p>SHA-1 的指纹：五个初始常量 <code>0x67452301</code>, <code>0xEFCDAB89</code>, <code>0x98BADCFE</code>, <code>0x10325476</code>, <code>0xC3D2E1F0</code>，80 轮运算。</p>
+<p>Python 中可以用 <code>hashlib</code> 快速验证猜测：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> hashlib
+<span class="kw">print</span>(hashlib.md5(b<span class="st">"flag"</span>).hexdigest())</code></pre></div>
+<h3 id="sec-73" class="hd hd-2">11.5 动手做</h3>
+<ol>
+<li>找一段包含 <code>xor</code> 循环的程序，判断密钥是固定值还是与下标有关，写出解密脚本。</li>
+<li>在 IDA 里搜索 Base64 字母表，观察查表索引的计算方式，判断是标准表还是自定义表。</li>
+</ol>
+<h2 id="sec-74" class="hd hd-1">第 12 讲 常见编码与算法识别（二）</h2>
+<h3 id="sec-75" class="hd hd-2">12.1 TEA / XTEA / XXTEA</h3>
+<p>TEA（Tiny Encryption Algorithm）是 CTF 非常爱用的轻量分组加密。</p>
+<p>TEA 的魔数（DELTA）是 <code>0x9E3779B9</code>，这是最明显的指纹。加密轮函数大致是：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">v0 += ((v1 &lt;&lt; 4) + k0) ^ (v1 + sum) ^ ((v1 &gt;&gt; 5) + k1);
+v1 += ((v0 &lt;&lt; 4) + k2) ^ (v0 + sum) ^ ((v0 &gt;&gt; 5) + k3);</code></pre></div>
+<p>XTEA 与 TEA 的区别在于位移位置：先把变量左移四位、右移五位再做异或并相加，轮数通常 32 或 64。</p>
+<p>识别到 TEA 后，直接用 Python 实现解密即可：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> struct
+DELTA = 0x9E3779B9
+
+<span class="kw">def</span> tea_decrypt(v, k):
+    v0, v1 = v
+    k0, k1, k2, k3 = k
+    sum_ = (DELTA * <span class="nm">32</span>) &amp; 0xffffffff
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="kw">range</span>(<span class="nm">32</span>):
+        v1 -= (((v0 &lt;&lt; <span class="nm">4</span>) + k2) ^ (v0 + sum_) ^ ((v0 &gt;&gt; <span class="nm">5</span>) + k3)) &amp; 0xffffffff
+        v1 &amp;= 0xffffffff
+        v0 -= (((v1 &lt;&lt; <span class="nm">4</span>) + k0) ^ (v1 + sum_) ^ ((v1 &gt;&gt; <span class="nm">5</span>) + k1)) &amp; 0xffffffff
+        v0 &amp;= 0xffffffff
+        sum_ = (sum_ - DELTA) &amp; 0xffffffff
+    <span class="kw">return</span> v0, v1</code></pre></div>
+<h3 id="sec-76" class="hd hd-2">12.2 AES 的特征</h3>
+<p>AES 的指纹：</p>
+<ul>
+<li>轮数 10/12/14（对应 128/192/256 位密钥）；</li>
+<li>S-box 常量表（前几个字节 <code>63 7c 77 7b f2 6b 6f c5</code>）；</li>
+<li>轮密钥扩展中出现 <code>rcon</code> 常量 <code>0x01,0x02,0x04,0x08,...</code>；</li>
+<li>操作 <code>xtime</code>（乘 2 的伽罗华域乘法），汇编中是 <code>shl</code> + 条件 <code>xor 0x1b</code>。</li>
+</ul>
+<p>如果程序调用了 <code>CryptEncrypt</code>、<code>EVP_EncryptUpdate</code> 等 API，那就直接看调用参数拿密钥。</p>
+<h3 id="sec-77" class="hd hd-2">12.3 CRC 与校验和</h3>
+<p>CRC32 的指纹：多项式 <code>0xEDB88320</code>（反射形式）或 <code>0x04C11DB7</code>，常配合一个 256 项的查找表。循环里出现 <code>crc = table[(crc ^ byte) &amp; 0xff] ^ (crc &gt;&gt; 8)</code>。</p>
+<p>CRC 不是加密，而是校验。如果 flag 的正确性由 CRC 判定，可以暴力构造满足校验的输入。</p>
+<h3 id="sec-78" class="hd hd-2">12.4 S-box 与查表</h3>
+<p>很多"魔改算法"本质是查表 + 置换：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">out[i] = sbox[input[i]];</code></pre></div>
+<p>逆向方法：把表 dump 出来，看它是否是标准算法的 S-box；如果是自定义双射表，求出逆表即可解密。</p>
+<h3 id="sec-79" class="hd hd-2">12.5 动手做</h3>
+<ol>
+<li>在二进制中搜索 <code>0x9E3779B9</code>（小端为 <code>B9 79 37 9E</code>），确认是否使用了 TEA 系列算法。</li>
+<li>提取一段自定义 S-box，验证它是否是 0-255 的双射（无重复），并求出逆表。</li>
+</ol>
+<h2 id="sec-80" class="hd hd-1">第 13 讲 做题实战：CrackMe 与 flag 校验</h2>
+<h3 id="sec-81" class="hd hd-2">13.1 最简单的 flag 比较</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">if (strcmp(input, "flag{hello_world}") == 0) puts("Correct");</code></pre></div>
+<p>这是最直白的题型：flag 以明文常量形式存在。字符串窗口一搜就到。</p>
+<h3 id="sec-82" class="hd hd-2">13.2 逐字符校验</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">for (int i = 0; i &lt; len; i++) {
+  if ((input[i] ^ 0x20) != target[i]) return 0;
+}</code></pre></div>
+<p>flag 不直接出现，但变换后的 <code>target</code> 数组在 <code>.rdata</code> 里。逆向时把 <code>target</code> dump 出来，按位 XOR 还原。</p>
+<h3 id="sec-83" class="hd hd-2">13.3 用户名的 keygen</h3>
+<p>程序根据用户名计算出序列号：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">int sum = 0;
+for (char *p = name; *p; p++) sum = sum * 31 + *p;
+serial = sum ^ 0x1234;</code></pre></div>
+<p>这类题需要写出注册机（keygen），而不是只找一个固定答案。理解算法后，用 Python 复现：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> keygen(name: <span class="kw">str</span>) -&gt; <span class="kw">int</span>:
+    s = <span class="nm">0</span>
+    <span class="kw">for</span> ch <span class="kw">in</span> name:
+        s = (s * <span class="nm">31</span> + ord(ch)) &amp; 0xffffffff
+    <span class="kw">return</span> s ^ 0x1234</code></pre></div>
+<h3 id="sec-84" class="hd hd-2">13.4 数组变换与查表</h3>
+<p>复杂的校验常由多步小变换串联：</p>
+<ol>
+<li>输入与常量 XOR；</li>
+<li>每个字节过 S-box；</li>
+<li>相邻字节相加；</li>
+<li>与 target 比较。</li>
+</ol>
+<p>逆向策略：<strong>从后往前推</strong>。先找到最终比较的 target，然后逐步逆运算。每一步的逆：</p>
+<div class='table-wrap'><table><thead><tr><th>正向</th><th>逆向</th></tr></thead><tbody>
+<tr><td><code>x ^= k</code></td><td><code>x ^= k</code></td></tr>
+<tr><td><code>x += k</code></td><td><code>x -= k</code></td></tr>
+<tr><td><code>x = sbox[x]</code></td><td><code>x = inv_sbox[x]</code></td></tr>
+<tr><td><code>x = rol(x, n)</code></td><td><code>x = ror(x, n)</code></td></tr>
+<tr><td><code>x = a*x + b</code>（a 可逆）</td><td>乘 a 的模逆</td></tr>
+</tbody></table></div>
+<h3 id="sec-85" class="hd hd-2">13.5 动手做</h3>
+<ol>
+<li>编写并逆向一个三层变换的 CrackMe（XOR → S-box → 加法），写出完整的逆过程脚本。</li>
+<li>用动态调试验证：在比较点 break， dump 出变换后的缓冲区，确认与你的脚本输出一致。</li>
+</ol>
+<h2 id="sec-86" class="hd hd-1">第 14 讲 花指令与代码混淆</h2>
+<h3 id="sec-87" class="hd hd-2">14.1 什么是花指令</h3>
+<p>花指令（Junk Code）是插入的无意义或具有欺骗性的指令，目的是让反汇编器产生错误的指令边界，干扰静态分析。</p>
+<h3 id="sec-88" class="hd hd-2">14.2 常见花指令模式</h3>
+<p><strong>不可达跳转：</strong></p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">asm</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">jmp  short next
+db   0xE8          ; 这个字节会被线性反汇编误认为 call 的开始
+next:
+mov  eax, 1</code></pre></div>
+<p><strong>互补条件跳转：</strong></p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">asm</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">jz   label1
+jnz  label1        ; 两个分支都跳到同一处，中间的代码是垃圾</code></pre></div>
+<p><strong>call 返回地址修改：</strong></p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">asm</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">call next
+next:
+add dword [esp], 5   ; 修改返回地址，跳过中间的垃圾字节
+ret</code></pre></div>
+<h3 id="sec-89" class="hd hd-2">14.3 控制流平坦化</h3>
+<p>控制流平坦化（Control Flow Flattening）把正常的 if/else、循环结构变成"分发器 + 状态机"：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">while (1) {
+  switch (state) {
+    case 0: /* 语句块A */ state = 2; break;
+    case 1: /* 语句块B */ state = 3; break;
+    // ...
+  }
+}</code></pre></div>
+<p>逆向思路：找到分发器（通常是一个大 switch 或间接跳转），追踪 <code>state</code> 的赋值，重建执行顺序。</p>
+<h3 id="sec-90" class="hd hd-2">14.4 虚假条件与恒真跳转</h3>
+<p>混淆器常在条件判断里放入恒真/恒假的表达式，例如：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">asm</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">xor eax, eax
+cmp eax, eax      ; 永远相等
+jne  fake_branch  ; 永远不会跳</code></pre></div>
+<p>F5 伪代码里这类结构看起来很复杂，但动态跟踪时会发现某些分支从未执行。</p>
+<h3 id="sec-91" class="hd hd-2">14.5 去混淆思路</h3>
+<ol>
+<li><strong>动态执行追踪</strong>：记录实际执行过的指令地址，忽略未执行的垃圾。</li>
+<li><strong>指令 patch</strong>：把花指令字节改成 <code>nop</code>（<code>0x90</code>），让反汇编重新对齐。</li>
+<li><strong>符号执行 / 约束求解</strong>：让 Z3 帮你算出满足条件的输入（见第 19 讲）。</li>
+<li><strong>借助工具</strong>：IDA 的插件（如 D-810）、Triton、angr 的去混淆脚本。</li>
+</ol>
+<h3 id="sec-92" class="hd hd-2">14.6 动手做</h3>
+<ol>
+<li>写一段含不可达跳转的汇编，用 objdump 和 IDA 分别反汇编，观察两者是否产生不同的指令边界。</li>
+<li>在调试器中单步跟踪一段花指令，记录哪些指令实际执行了。</li>
+</ol>
+<h2 id="sec-93" class="hd hd-1">第 15 讲 反调试与反虚拟机</h2>
+<h3 id="sec-94" class="hd hd-2">15.1 为什么要反调试</h3>
+<p>程序作者不希望你分析它，于是检测自己是否处于调试环境，检测到就退出或走假逻辑。CTF 中常见，但仍属于"障碍"而非"考点核心"。</p>
+<h3 id="sec-95" class="hd hd-2">15.2 IsDebuggerPresent 与 PEB</h3>
+<p>最直接的反调试 API：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">if (IsDebuggerPresent()) exit(0);</code></pre></div>
+<p>其本质是读取进程环境块（PEB）中的 <code>BeingDebugged</code> 标志：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">asm</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">mov eax, fs:[0x30]        ; 32 位下 fs:[0x30] 是 PEB 地址
+movzx eax, byte [eax+2]   ; BeingDebugged 字段
+test eax, eax
+jnz  detected</code></pre></div>
+<p>64 位下通过 <code>gs:[0x60]</code> 访问 PEB。</p>
+<p>绕过方法：在调试器中把 <code>BeingDebugged</code> 置 0，或 hook <code>IsDebuggerPresent</code> 让它返回 0。</p>
+<h3 id="sec-96" class="hd hd-2">15.3 时间差与 INT3/Self</h3>
+<ul>
+<li><strong>时间差检测</strong>：用 <code>rdtsc</code> 读取时间戳计数器，两次调用间隔过大说明被单步调试。</li>
+<li><strong>INT3 扫描</strong>：扫描自身代码，检查是否有 <code>0xCC</code>（软件断点）。</li>
+<li><strong>异常处理陷阱</strong>：故意触发异常，看调试器是否接管。</li>
+</ul>
+<h3 id="sec-97" class="hd hd-2">15.4 反虚拟机常见手法</h3>
+<ul>
+<li>检查 BIOS 信息、MAC 地址前缀（VMware 的 <code>00:0C:29</code>）；</li>
+<li>查找虚拟机特有文件/进程（vmtoolsd.exe、VBoxService.exe）；</li>
+<li>执行特权指令（如 <code>sidt</code>、<code>sgdt</code>、<code>in</code> 指令），虚拟机和物理机行为不同。</li>
+</ul>
+<h3 id="sec-98" class="hd hd-2">15.5 绕过思路</h3>
+<ol>
+<li>静态 patch：把检测分支改成 <code>nop</code> 或强制跳转。</li>
+<li>动态 hook：用 x64dbg 的"隐藏调试器"插件、ScyllaHide。</li>
+<li>直接改标志位：在检测后、判断前断点，修改 EAX。</li>
+<li>不运行原始程序：用 Unicorn 模拟执行关键函数，绕开环境检测。</li>
+</ol>
+<h3 id="sec-99" class="hd hd-2">15.6 动手做</h3>
+<ol>
+<li>写一个调用 <code>IsDebuggerPresent</code> 的小程序，用 x64dbg 打开后在断点处修改返回值，让程序继续正常执行。</li>
+<li>搜索一个恶意样本分析文章，列出它使用的三种反调试手法及对应的绕过方法。</li>
+</ol>
+<h2 id="sec-100" class="hd hd-1">第 16 讲 加壳与脱壳</h2>
+<h3 id="sec-101" class="hd hd-2">16.1 壳的原理</h3>
+<p>壳（Packer）在原始程序外包裹一层代码：运行时先由壳解密/解压原始程序到内存，再跳到真正的入口点执行。壳把原始代码、导入表都加密了，静态分析看不到真实逻辑。</p>
+<p>壳的分类：</p>
+<ul>
+<li><strong>压缩壳</strong>：UPX、ASPack（主要压缩体积）。</li>
+<li><strong>加密壳</strong>：VMProtect、Themida（高强度保护，带反调试和虚拟化）。</li>
+</ul>
+<h3 id="sec-102" class="hd hd-2">16.2 识别壳</h3>
+<ul>
+<li>用 DIE / PEiD 查壳；</li>
+<li>观察节名：<code>UPX0</code>、<code>UPX1</code>、<code>aspack</code> 等；</li>
+<li>入口点代码异常：正常程序入口点通常比较规整，壳的入口点代码看起来很乱；</li>
+<li>导入表很少：真正的 API 调用被壳隐藏了。</li>
+</ul>
+<h3 id="sec-103" class="hd hd-2">16.3 UPX 脱壳</h3>
+<p>UPX 是最简单的壳，一条命令即可：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">bash</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">upx -d packed.exe -o unpacked.exe</code></pre></div>
+<p>但 CTF 题目常把 UPX 魔改（改节名、改头标志），导致 <code>upx -d</code> 失败，这时需要手动脱壳或修复头部后脱壳。</p>
+<h3 id="sec-104" class="hd hd-2">16.4 手动脱壳：找 OEP</h3>
+<p>OEP（Original Entry Point）是原始程序的入口点。手动脱壳的核心步骤：</p>
+<ol>
+<li>在壳的入口点单步跟踪，观察 ESP 变化；</li>
+<li><strong>ESP 定律</strong>：在 <code>pushad</code>/<code>pusha</code> 之后，等栈平衡（POPAD）发生时，指令地址附近就是 OEP；</li>
+<li>或者使用内存断点：对 <code>.text</code> 节下"写入"断点，解压完成后会断下；</li>
+<li>找到 OEP 后，用 <code>dump</code> 工具（如 OllyDump、Scylla）把内存中的程序保存为文件。</li>
+</ol>
+<h3 id="sec-105" class="hd hd-2">16.5 IAT 修复与 dump</h3>
+<p>脱壳后导入表（IAT）通常是坏的，需要用 Scylla 等工具重建：</p>
+<ol>
+<li>在 OEP 处暂停；</li>
+<li>打开 Scylla → IAT Autosearch → Get Imports；</li>
+<li>修复 dump 文件，填入 OEP。</li>
+</ol>
+<h3 id="sec-106" class="hd hd-2">16.6 动手做</h3>
+<ol>
+<li>用 <code>upx</code> 给自己写的一个小程序加壳，再用 <code>upx -d</code> 脱壳，对比加壳前后的文件。</li>
+<li>在 x64dbg 中跟踪加壳程序，找到 <code>pushad</code> 和对应的 <code>popad</code>，记录 OEP 的位置。</li>
+</ol>
+<h2 id="sec-107" class="hd hd-1">第 17 讲 虚拟机保护（VM）逆向入门</h2>
+<h3 id="sec-108" class="hd hd-2">17.1 VM 保护是什么</h3>
+<p>VM 保护把程序的部分逻辑转换成自定义字节码，由一段解释器（VM interpreter）执行。逆向者看到的不是原始汇编，而是"解释器的汇编 + 一串字节码"。</p>
+<h3 id="sec-109" class="hd hd-2">17.2 VM 的基本结构</h3>
+<p>一个典型的 VM 包含：</p>
+<ul>
+<li><strong>VM 入口</strong>：保存寄存器上下文，设置虚拟机环境；</li>
+<li><strong>Dispatcher（分发器）</strong>：根据 opcode 跳到对应 handler；</li>
+<li><strong>Handler 表</strong>：每个 opcode 对应一段处理代码；</li>
+<li><strong>VM 栈/寄存器</strong>：虚拟机的执行环境；</li>
+<li><strong>VM 出口</strong>：恢复上下文，返回原生代码。</li>
+</ul>
+<h3 id="sec-110" class="hd hd-2">17.3 识别 VM 指令集</h3>
+<p>逆向 VM 的第一步是识别 handler：</p>
+<ol>
+<li>找到 dispatcher，通常是一个大 <code>switch</code> 或 <code>jmp [table + opcode*4]</code>；</li>
+<li>枚举每个 case 对应的 handler 地址；</li>
+<li>分析每个 handler 的语义（是加法？异或？压栈？跳转？）；</li>
+<li>给 opcode 命名，建立自己的"指令表"。</li>
+</ol>
+<h3 id="sec-111" class="hd hd-2">17.4 还原字节码</h3>
+<p>有了指令表后，把字节码序列反汇编成你自己的汇编语言，然后理解其逻辑。对于简单的 VM（比如只有加减异或和跳转），可以直接写个解释器模拟执行。</p>
+<p>Python 模拟执行框架示例：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">def</span> vm_execute(bytecode, handlers):
+    pc = <span class="nm">0</span>
+    <span class="kw">while</span> pc &lt; <span class="kw">len</span>(bytecode):
+        opcode = bytecode[pc]
+        pc = handlers[opcode](pc + <span class="nm">1</span>)   <span class="cm"># handler 返回新的 pc</span></code></pre></div>
+<h3 id="sec-112" class="hd hd-2">17.5 动手做</h3>
+<ol>
+<li>找一个入门级 VM 题（如一些 CTF 的 <code>vm1</code>、<code>baby_vm</code>），尝试识别 dispatcher 和至少 5 个 handler。</li>
+<li>为识别出的 opcode 写一张对照表，记录每个 handler 的语义。</li>
+</ol>
+<h2 id="sec-113" class="hd hd-1">第 18 讲 托管代码与脚本语言逆向</h2>
+<h3 id="sec-114" class="hd hd-2">18.1 .NET 程序与 dnSpy</h3>
+<p>.NET 程序编译成 IL（中间语言），而不是机器码。IL 保留了大量类型和方法信息，逆向难度远低于原生程序。</p>
+<p><strong>dnSpy</strong> 是 .NET 逆向的利器：直接反编译成接近源码的 C#，还能动态调试。用 dnSpy 打开程序，搜索flag相关字符串，跟踪校验函数即可。</p>
+<h3 id="sec-115" class="hd hd-2">18.2 Java 字节码与 JD-GUI</h3>
+<p>Java 编译成 <code>.class</code> 字节码。工具链：</p>
+<ul>
+<li><strong>JD-GUI / CFR / FernFlower</strong>：反编译成 Java 源码；</li>
+<li><strong>javap -c</strong>：查看字节码指令；</li>
+<li><strong>Jadx</strong>：Android APK 逆向首选。</li>
+</ul>
+<h3 id="sec-116" class="hd hd-2">18.3 Python：pyc、PyInstaller</h3>
+<p>Python 程序常以 <code>.pyc</code>（字节码）或 PyInstaller 打包的 exe 形式出现。</p>
+<p>PyInstaller 解包步骤：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">bash</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"># 1. 提取归档
+python pyinstxtractor.py target.exe
+# 2. 反编译 pyc（版本要对）
+uncompyle6 extracted/main.pyc &gt; main.py</code></pre></div>
+<p>注意 Python 3.11+ 后 uncompyle6 支持有限，可用 <code>decompyle3</code>、<code>pycdc</code> 或 <code>dis</code> 模块手动分析字节码。</p>
+<p>Python 字节码反汇编：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> dis, marshal
+<span class="kw">with</span> open(<span class="st">"main.pyc"</span>, <span class="st">"rb"</span>) <span class="kw">as</span> f:
+    f.read(<span class="nm">16</span>)              <span class="cm"># 跳过 pyc 头</span>
+    code = marshal.load(f)
+dis.dis(code)</code></pre></div>
+<h3 id="sec-117" class="hd hd-2">18.4 JS / Lua</h3>
+<ul>
+<li><strong>JS</strong>：前端题常见混淆（eval、字符串拼接、控制流平坦化）。用 prettier / js-beautify 格式化，再逐步去混淆；Node.js 下可以用 <code>vm</code> 模块动态执行。</li>
+<li><strong>Lua</strong>：Lua 字节码可用 <code>luac -l</code> 或 <code>luajit</code> 相关工具分析，常见于游戏和移动脚本。</li>
+</ul>
+<h3 id="sec-118" class="hd hd-2">18.5 动手做</h3>
+<ol>
+<li>用 <code>python -m py_compile</code> 生成一个 pyc 文件，用 <code>dis</code> 模块反汇编，观察一段循环在字节码层面的样子。</li>
+<li>用 dnSpy 打开一个 .NET 小程序，找到主函数并理解其逻辑。</li>
+</ol>
+<h2 id="sec-119" class="hd hd-1">第 19 讲 符号执行与程序分析入门</h2>
+<h3 id="sec-120" class="hd hd-2">19.1 符号执行是什么</h3>
+<p>普通执行中，变量是具体值；符号执行中，变量是符号（如 <code>x</code>），程序计算出的是关于符号的表达式。遇到分支时，收集路径条件，用约束求解器求出能走到目标分支的输入。这正好对应 CTF 中"求输入使程序输出 Correct"的需求。</p>
+<h3 id="sec-121" class="hd hd-2">19.2 angr 基础</h3>
+<p>angr 是 Python 写的符号执行框架：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">import</span> angr
+p = angr.Project(<span class="st">"./program"</span>, auto_load_libs=<span class="kw">False</span>)
+state = p.factory.entry_state()
+simgr = p.factory.simulation_manager(state)
+simgr.explore(find=0x401234, avoid=0x401240)   <span class="cm"># find=成功地址, avoid=失败地址</span>
+<span class="kw">if</span> simgr.found:
+    <span class="kw">print</span>(simgr.found[<span class="nm">0</span>].posix.dumps(<span class="nm">0</span>))        <span class="cm"># 打印使程序走向成功的 stdin</span></code></pre></div>
+<p>angr 对简单程序效果很好，但面对复杂循环、系统调用、反调试会explode（路径爆炸），需要手动设置约束和 hook。</p>
+<h3 id="sec-122" class="hd hd-2">19.3 Z3 约束求解</h3>
+<p>Z3 是约束求解器，适合把算法还原成数学约束后求解：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body"><span class="kw">from</span> z3 <span class="kw">import</span> *
+<span class="kw">x</span> = BitVec(<span class="st">'x'</span>, <span class="nm">32</span>)
+s = Solver()
+s.add((<span class="kw">x</span> ^ 0x12345678) == 0x87654321)
+<span class="kw">print</span>(s.check())              <span class="cm"># sat</span>
+<span class="kw">print</span>(s.model()[<span class="kw">x</span>])           <span class="cm"># 求出满足条件的 <span class="kw">x</span></span></code></pre></div>
+<p>Z3 的 <code>BitVec</code> 完美对应机器整数（32/64 位溢出行为一致），是逆向求解的利器。</p>
+<h3 id="sec-123" class="hd hd-2">19.4 适用场景与局限</h3>
+<p>适合：</p>
+<ul>
+<li>逐字符校验、简单算法、路径较少的程序；</li>
+<li>已知算法结构，只需解出输入。</li>
+</ul>
+<p>不适合：</p>
+<ul>
+<li>路径爆炸（大量分支/循环）；</li>
+<li>大量系统调用或环境依赖；</li>
+<li>强混淆/VM 保护（需要先还原逻辑）。</li>
+</ul>
+<h3 id="sec-124" class="hd hd-2">19.5 动手做</h3>
+<ol>
+<li>用 Z3 求解：<code>x * 7 + 3 = 0x12345678</code>（32 位无符号）。</li>
+<li>用 angr 跑一个简单的 CrackMe，让它自动求出正确输入（参考 angr 官方文档的 examples）。</li>
+</ol>
+<h2 id="sec-125" class="hd hd-1">第 20 讲 程序补丁与 Keygen</h2>
+<h3 id="sec-126" class="hd hd-2">20.1 为什么要打补丁</h3>
+<p>有时候你不需要还原算法，只需要让程序"认为输入正确"。修改程序的机器码（补丁）可以达到这个目的。注意：CTF 中补丁主要用于辅助验证，最终 flag 还是要靠还原算法得出。</p>
+<h3 id="sec-127" class="hd hd-2">20.2 静态补丁</h3>
+<p>直接在文件上改机器码：</p>
+<ul>
+<li>把 <code>jne</code> (<code>0x75</code>) 改成 <code>jmp</code> (<code>0xEB</code>)；</li>
+<li>把判断分支改成 <code>nop</code> (<code>0x90</code>)；</li>
+<li>用 010 Editor 定位字节并修改。</li>
+</ul>
+<p>注意 x86 指令长度：短跳转 <code>0x75</code> 和 <code>0xEB</code> 长度相同（2 字节），可以直接替换；<code>nop</code> 替换时要保证总长度不变。</p>
+<h3 id="sec-128" class="hd hd-2">20.3 动态补丁</h3>
+<p>在调试器里程序运行时修改内存中的指令，不改文件。适合临时验证。x64dbg 中可以直接双击汇编指令编辑。</p>
+<h3 id="sec-129" class="hd hd-2">20.4 写注册机</h3>
+<p>注册机（Keygen）是根据用户名/序列号算法写出生成正确序列的程序。要求完全理解算法，包括：</p>
+<ul>
+<li>字符编码处理（大小写、ASCII/Unicode）；</li>
+<li>整数溢出行为（32 位还是 64 位）；</li>
+<li>边界条件（空字符串、特殊字符）。</li>
+</ul>
+<h3 id="sec-130" class="hd hd-2">20.5 动手做</h3>
+<ol>
+<li>找一个判断登录成功/失败的 CrackMe，用静态补丁让程序无条件输出"成功"，观察效果。</li>
+<li>还原一个简单 keygen 算法，用 Python 写出注册机，并用原程序验证生成的序列号。</li>
+</ol>
+<h2 id="sec-131" class="hd hd-1">第 21 讲 解题通用流程与心态</h2>
+<h3 id="sec-132" class="hd hd-2">21.1 标准解题流程</h3>
+<ol>
+<li><strong>信息收集</strong>：<code>file</code>、DIE、字符串、导入表、查壳；</li>
+<li><strong>定位关键点</strong>：从提示字符串、比较指令、API 调用入手；</li>
+<li><strong>静态分析</strong>：F5 伪代码 + 交叉引用，理解大致逻辑；</li>
+<li><strong>动态验证</strong>：下断点，观察真实数据，验证猜想；</li>
+<li><strong>算法还原</strong>：写出逆过程脚本，求出 flag；</li>
+<li><strong>结果验证</strong>：把 flag 代回原程序确认。</li>
+</ol>
+<h3 id="sec-133" class="hd hd-2">21.2 卡住时的思路</h3>
+<ul>
+<li>回到字符串窗口，有没有遗漏的提示？</li>
+<li>是不是有反调试/加壳，导致静态分析结果不对？</li>
+<li>动态调试时，程序实际走的是哪条分支？</li>
+<li>把复杂函数拆成小块，逐块理解。</li>
+<li>换个工具：IDA 看不明白的，试试 Ghidra 的伪代码。</li>
+</ul>
+<h3 id="sec-134" class="hd hd-2">21.3 给新手的三条建议</h3>
+<ol>
+<li><strong>亲手实践胜过只看书</strong>：看懂别人的分析不算会，自己调一遍才算。</li>
+<li><strong>记笔记</strong>：把见过的算法指纹、花指令模式、工具快捷键整理成自己的 cheat sheet。</li>
+<li><strong>从简单题开始</strong>：逐字符校验、XOR、Base64 这些"简单题"是构建直觉的基石。</li>
+</ol>
+<blockquote class="callout">本讲只是解题流程的概览。如果你想要更系统的<strong>思维方式</strong>——面对陌生题目如何判断方向、各类题型怎么想、卡壳了怎么排查——请继续阅读第 25 讲至第 29 讲的"解题思维"专题。那五讲专门回答"遇到问题和题目时该怎么想"。</blockquote>
+<h2 id="sec-135" class="hd hd-1">第 22 讲 学习路线与资源</h2>
+<h3 id="sec-136" class="hd hd-2">22.1 分阶段路线</h3>
+<p><strong>阶段一：基础（1-2 个月）</strong></p>
+<ul>
+<li>熟悉进制、字节序、C 语言、基础汇编；</li>
+<li>学会 IDA、x64dbg 的基本使用；</li>
+<li>做 10-20 道入门 CrackMe。</li>
+</ul>
+<p><strong>阶段二：进阶（2-4 个月）</strong></p>
+<ul>
+<li>常见算法识别（XOR、Base64、RC4、TEA、AES、哈希）；</li>
+<li>动态调试技巧、反调试绕过；</li>
+<li>做中等难度题目，练习写逆过程脚本。</li>
+</ul>
+<p><strong>阶段三：高级（持续）</strong></p>
+<ul>
+<li>脱壳、去混淆、VM 逆向；</li>
+<li>符号执行、Z3 求解；</li>
+<li>多平台（.NET、Java、Python）逆向。</li>
+</ul>
+<h3 id="sec-137" class="hd hd-2">22.2 推荐资源</h3>
+<ul>
+<li>书籍：《逆向工程核心原理》（Reverse Engineering Core Principles）、《加密与解密》、《Practical Reverse Engineering》。</li>
+<li>平台：crackmes.one、CTFtime、Bugku、攻防世界、NSSCTF。</li>
+<li>工具文档：IDA Help、Ghidra 官方文档、x64dbg 文档。</li>
+<li>社区：看雪论坛、吾爱破解、Reddit r/ReverseEngineering。</li>
+</ul>
+<h3 id="sec-138" class="hd hd-2">22.3 常用 Python 库清单</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">bash</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">pip install capstone unicorn z3-solver pefile pyelftools angr</code></pre></div>
+<h2 id="sec-139" class="hd hd-1">第 23 讲 综合实战一：一个 CrackMe 完整复盘</h2>
+<h3 id="sec-140" class="hd hd-2">23.1 题目给的信息</h3>
+<p>一个 Windows 32 位 exe，运行后提示输入 flag，错误则输出 "Try again"。无符号，未加壳。</p>
+<h3 id="sec-141" class="hd hd-2">23.2 信息收集</h3>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">bash</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">file crackme.exe            # PE32, Intel 80386</code></pre></div>
+<p>DIE 显示：MSVC 编译，无壳。导入表里有 <code>scanf</code>、<code>printf</code>、<code>strcmp</code>。</p>
+<h3 id="sec-142" class="hd hd-2">23.3 定位关键代码</h3>
+<p>IDA 打开，Shift+F12 搜索 "Try again"，双击后用 <code>X</code> 找到引用函数。F5 反编译得到：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">int check(char *input) {
+  char buf[32];
+  int len = strlen(input);
+  for (int i = 0; i &lt; len; i++) {
+    buf[i] = ((input[i] ^ 0x17) + 3) &amp; 0xff;
+  }
+  return strcmp(buf, target);
+}</code></pre></div>
+<h3 id="sec-143" class="hd hd-2">23.4 dump target 并还原</h3>
+<p>在 IDA 中双击 <code>target</code>，在 Hex-View 中提取 32 字节：<code>3A 50 6C ...</code>。</p>
+<p>逆过程：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">target = <span class="kw">bytes</span>.fromhex(<span class="st">"3a506c..."</span>)
+flag = <span class="kw">bytes</span>(((b - <span class="nm">3</span>) &amp; 0xff) ^ 0x17 <span class="kw">for</span> b <span class="kw">in</span> target)
+<span class="kw">print</span>(flag.decode())</code></pre></div>
+<h3 id="sec-144" class="hd hd-2">23.5 验证</h3>
+<p>把求出的 flag 输入程序，输出 "Correct!"，完成。</p>
+<h3 id="sec-145" class="hd hd-2">23.6 这道题教会我们的</h3>
+<ul>
+<li>从字符串 → 交叉引用 → 核心函数是标准起手式；</li>
+<li>逐字节变换类题目，从后往前逆推；</li>
+<li>注意按位与掩码意味着字节运算，Python 里要显式处理。</li>
+</ul>
+<h2 id="sec-146" class="hd hd-1">第 24 讲 综合实战二：混淆校验函数复盘</h2>
+<h3 id="sec-147" class="hd hd-2">24.1 题目特征</h3>
+<p>程序没有明显的字符串提示，校验逻辑被平坦化，伪代码里是一个巨大的 while-switch 结构。</p>
+<h3 id="sec-148" class="hd hd-2">24.2 识别分发器</h3>
+<p>在 F5 伪代码中找到一个 <code>while(1) { switch(state) {...} }</code>，<code>state</code> 初始为 0，每个 case 末尾修改 <code>state</code>。这就是平坦化的分发器。</p>
+<h3 id="sec-149" class="hd hd-2">24.3 重建执行顺序</h3>
+<p>通过动态调试单步执行，记录 state 的变化序列：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">0 → 3 → 7 → 5 → 9 → 2 → end</code></pre></div>
+<p>据此把 case 块按真实顺序排列，还原出原始逻辑。</p>
+<h3 id="sec-150" class="hd hd-2">24.4 识别算法并求解</h3>
+<p>还原后的逻辑是：输入每字节与前一个明文字节异或（正向 enc[i] = flag[i] ^ flag[i-1]），再与常量数组比较。逆推时要用「上一步还原出的明文」flag[i-1]，而不是上一个密文。用 Python 逆推：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">enc = [...]            <span class="cm"># dump 出的常量数组</span>
+flag = [enc[<span class="nm">0</span>]]
+<span class="kw">for</span> i <span class="kw">in</span> <span class="kw">range</span>(<span class="nm">1</span>, <span class="kw">len</span>(enc)):
+    flag.append(enc[i] ^ flag[i-<span class="nm">1</span>])
+<span class="kw">print</span>(<span class="kw">bytes</span>(flag))</code></pre></div>
+<h3 id="sec-151" class="hd hd-2">24.5 收获</h3>
+<ul>
+<li>面对平坦化，动态执行轨迹比静态伪代码更有效；</li>
+<li>chaining（链式）变换的逆推要从第一个元素开始，注意方向；</li>
+<li>混淆改变的是代码形态，不改变算法本质。</li>
+</ul>
+<h2 id="sec-152" class="hd hd-1">第 25 讲 解题思维总纲：从"看见"到"看穿"</h2>
+<h3 id="sec-153" class="hd hd-2">25.1 逆向解题的本质是一场"假设—验证"循环</h3>
+<p>很多新手做题的状态是"到处乱点、碰运气"，而高手看起来像是"一眼就看穿"。差别不在工具熟练度，而在思维方式。高手的脑子里的循环是这样的：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">观察现象 → 提出假设 → 设计验证 → 执行验证 → 确认/推翻假设 → 修正认知 → 继续</code></pre></div>
+<p>这个循环叫做<strong>科学思维</strong>，它有两个关键纪律：</p>
+<ol>
+<li><strong>假设必须可以被推翻</strong>。如果你的假设是"这里大概是个判断吧"，那它无法被验证，等于没想。要把它具体到"这个 <code>call</code> 的返回值等于 0 时走成功分支"。</li>
+<li><strong>验证要尽量低成本</strong>。能用静态看出来的，别去动态调；能下断点一次看到的，别单步一百次。<strong>每次操作前先问自己：这一步能回答我哪个具体问题？</strong> 答不上来就别做。</li>
+</ol>
+<blockquote class="callout">逆向最费时间的从来不是"操作"，而是"不知道该做什么"。所以每一讲末尾的"动手做"要求你记录操作目的，就是在训练这种思维纪律。</blockquote>
+<h3 id="sec-154" class="hd hd-2">25.2 三个层次的思维：现象层、结构层、意图层</h3>
+<p>同一个程序，可以从三个层次去理解：</p>
+<div class='table-wrap'><table><thead><tr><th>层次</th><th>你看到的东西</th><th>对应的问题</th><th>典型工具</th></tr></thead><tbody>
+<tr><td>现象层</td><td>字符串、弹窗、输入输出、API 调用</td><td>"程序对外表现什么？"</td><td>strings、导入表、运行观察</td></tr>
+<tr><td>结构层</td><td>函数、循环、分支、数据结构</td><td>"程序内部怎么组织？"</td><td>F5 伪代码、交叉引用、调用图</td></tr>
+<tr><td>意图层</td><td>算法、校验逻辑、状态机</td><td>"作者想达到什么目的？"</td><td>算法识别、约束求解、逻辑抽象</td></tr>
+</tbody></table></div>
+<p><strong>解题的推进，就是不断在这三层之间上下穿梭。</strong> 例如：</p>
+<ol>
+<li>在现象层看到 "Wrong password" →</li>
+<li>跳到结构层，用交叉引用找到引用它的函数 →</li>
+<li>在结构层发现一个逐字节比较的循环 →</li>
+<li>上升到意图层：这是"逐字符校验"，于是想到把目标数组 dump 出来逆推 →</li>
+<li>回到现象层：把求出的密码输入原程序验证。</li>
+</ol>
+<p>很多人在结构层"迷路"，是因为他只在结构层打转，忘了回到现象层确认方向，也没有上升到意图层去调用已有的算法知识。<strong>遇到看不懂的代码，先问：它在现象层对应什么行为？</strong></p>
+<h3 id="sec-155" class="hd hd-2">25.3 自顶向下与自底向上：两种逼近路径</h3>
+<ul>
+<li><strong>自顶向下（从意图到代码）</strong>：先看整体行为，猜程序要做什么，再去代码里验证。适合功能清晰、有明确提示的题。</li>
+<li><strong>自底向上（从代码到意图）</strong>：从一段看不懂的汇编/伪代码出发，逐句翻译成人话，最后拼出整体逻辑。适合无提示、混淆严重的题。</li>
+</ul>
+<p>高手的做法是<strong>两者交替</strong>：用自顶向下确定大方向（"这大概是个 flag 校验器"），用自底向上啃下关键细节（"这个循环到底在算什么"），再用自顶向下检验细节是否符合整体预期。</p>
+<h3 id="sec-156" class="hd hd-2">25.4 缩小问题规模：把"整道题"变成"一个比较点"</h3>
+<p>面对一个几万行代码的程序，直接分析是绝望的。逆向思维的精髓是<strong>不断缩小问题规模</strong>：</p>
+<ol>
+<li>从整个程序 → 缩小到相关功能模块；</li>
+<li>从模块 → 缩小到关键函数；</li>
+<li>从函数 → 缩小到一个判断分支；</li>
+<li>从分支 → 缩小到一条 <code>cmp</code> 指令和它的两个数据来源。</li>
+</ol>
+<p>当你把问题缩小到"这个 <code>cmp</code> 的两个操作数分别是什么、我能不能控制它们"，题目基本上就解出来了。<strong>做题时时刻问自己：我现在关注的范围能不能再小一点？</strong></p>
+<h3 id="sec-157" class="hd hd-2">25.5 三个永远值得先问的问题</h3>
+<p>无论什么题型，动手分析前先问自己三个问题，能省掉大量弯路：</p>
+<ol>
+<li><strong>这是什么语言/架构写的？</strong> 决定工具选择：.NET 用 dnSpy，Python 用解包，原生 PE/ELF 才用 IDA/Ghidra。</li>
+<li><strong>它有没有加壳/保护？</strong> 如果入口点代码很奇怪、导入表很少，先脱壳再分析，别在壳代码里浪费时间。</li>
+<li><strong>程序成功和失败的"分叉点"在哪？</strong> 逆向的目标几乎总是"找到决定成功与否的那个判断"。先找到它，再倒推需要什么输入。</li>
+</ol>
+<h3 id="sec-158" class="hd hd-2">25.6 动手做</h3>
+<ol>
+<li>找一道你以前做过的题，重新打开，按"现象层 → 结构层 → 意图层"写一遍你的分析路径，对比当初的思路，看看哪里走了弯路。</li>
+<li>下次做题时，每做一步操作前在纸上写下"我这一步想验证什么假设"，做完写下结论。连续做三道题后回看，统计有多少操作是没有明确目的的。</li>
+</ol>
+<h2 id="sec-159" class="hd hd-1">第 26 讲 面对陌生题目的第一小时：信息收集与方向判断</h2>
+<h3 id="sec-160" class="hd hd-2">26.1 第一小时的黄金流程</h3>
+<p>拿到一道题，不要急着按 F5。先花十分钟做"侦察"，这十分钟的回报率最高：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">file / DIE → 查壳 → strings → 导入导出表 → 运行观察 → 确定题型 → 选工具 → 深入分析</code></pre></div>
+<p>每一步的目的：</p>
+<div class='table-wrap'><table><thead><tr><th>步骤</th><th>要回答的问题</th><th>如果答案是……</th></tr></thead><tbody>
+<tr><td><code>file</code> / DIE</td><td>什么架构？什么语言？</td><td>.NET/Python → 换专用工具</td></tr>
+<tr><td>查壳</td><td>有没有壳？</td><td>有壳 → 先脱壳</td></tr>
+<tr><td>strings</td><td>有什么提示字符串？</td><td>有 "Input flag" → 从交叉引用切入</td></tr>
+<tr><td>导入表</td><td>用了哪些关键 API？</td><td>有 <code>GetDlgItemText</code> → GUI 输入；有 <code>fopen</code> → 读文件</td></tr>
+<tr><td>运行观察</td><td>正常/异常输入各有什么表现？</td><td>有回显 → 可动态追踪；无回显 → 纯静态</td></tr>
+</tbody></table></div>
+<h3 id="sec-161" class="hd hd-2">26.2 用"输入—输出—状态"模型描述程序</h3>
+<p>把任何程序都抽象成三部分：</p>
+<ul>
+<li><strong>输入</strong>：从哪里来？（命令行、stdin、文件、注册表、网络）</li>
+<li><strong>输出</strong>：到那里去？（stdout、文件、弹窗、返回值）</li>
+<li><strong>状态</strong>：中间保存了什么？（全局变量、堆数据、文件缓存）</li>
+</ul>
+<p>快速定位输入点是关键：如果不知道输入从哪来，就没法动态调试，也没法构造测试。</p>
+<ul>
+<li>看到 <code>scanf</code> / <code>gets</code> / <code>fgets</code> → stdin；</li>
+<li>看到 <code>GetDlgItemText</code> → GUI 文本框；</li>
+<li>看到 <code>fopen</code> / <code>ReadFile</code> → 文件；</li>
+<li>看到 <code>recv</code> / <code>InternetReadFile</code> → 网络。</li>
+</ul>
+<blockquote class="callout">一个常见困境：断在比较点，但缓冲区内容是空的。八成是输入来源没找对——程序根本不是从你以为的地方读数据的。</blockquote>
+<h3 id="sec-162" class="hd hd-2">26.3 如何判断题型（决定后续策略）</h3>
+<div class='table-wrap'><table><thead><tr><th>观察到的特征</th><th>大概率题型</th><th>优先策略</th></tr></thead><tbody>
+<tr><td>明文 flag 在字符串里</td><td>最简单的比较</td><td>直接提交</td></tr>
+<tr><td>有 "Wrong/Correct" 且逐字节循环</td><td>逐字符校验</td><td>dump 目标数组，逆变换</td></tr>
+<tr><td>输入用户名 → 输出序列号</td><td>注册机</td><td>还原算法，写 keygen</td></tr>
+<tr><td>大量 <code>xor</code>/查表/魔数</td><td>自定义算法</td><td>识别算法，写逆过程</td></tr>
+<tr><td>入口点代码混乱、节名异常</td><td>加壳</td><td>脱壳 → 再分析</td></tr>
+<tr><td>伪代码是巨大 switch</td><td>控制流平坦化</td><td>动态追踪执行路径</td></tr>
+<tr><td>call/jmp 跳跃诡异、有垃圾字节</td><td>花指令</td><td>patch 或动态执行</td></tr>
+<tr><td>字节码 + 解释器结构</td><td>VM</td><td>建 handler 表，还原指令集</td></tr>
+<tr><td>有 <code>PyInstaller</code>/<code>.NET</code>/Java 特征</td><td>托管/脚本语言</td><td>用对应反编译器</td></tr>
+</tbody></table></div>
+<h3 id="sec-163" class="hd hd-2">26.4 信息收集阶段的常见错误</h3>
+<ol>
+<li><strong>只看 strings 不看宽字符</strong>。默认字符串列表可能不含 UTF-16 字符串，flag 或提示可能藏在里面。切换字符串宽度再搜一遍。</li>
+<li><strong>忽略资源段</strong>。图标、对话框、版本信息里都可能藏东西，用 Resource Hacker 翻一遍。</li>
+<li><strong>不运行程序就下结论</strong>。有些题目必须在特定输入/环境下才解压真正代码，光看静态会一头雾水。</li>
+<li><strong>在壳代码里死磕</strong>。发现是 UPX 还去分析入口点的几百行汇编，纯属浪费——先脱壳。</li>
+</ol>
+<h3 id="sec-164" class="hd hd-2">26.5 建立"线索板"</h3>
+<p>准备一个文本文件作为线索板，随分析随时记录：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">[事实] 导入表有 MessageBoxA，说明会弹窗
+[假设] 弹窗内容可能是校验结果 → 待验证
+[线索] 0x401250 处有一个 32 字节的常量数组
+[问题] 输入是从文件读的还是从 stdin？ → 需动态确认
+[已排除] 不是标准 MD5（没有魔数 0x67452301）</code></pre></div>
+<p>把"事实、假设、线索、问题、已排除"分开记。<strong>逆向是信息的累积过程，线索板能防止你在长时间分析中遗忘关键细节，也能让你在卡住时快速回到已知事实。</strong></p>
+<h3 id="sec-165" class="hd hd-2">26.6 动手做</h3>
+<ol>
+<li>找三道不同类型的题，只做第一小时的信息收集（不深入分析），为每题填写一张"线索板"，然后判断题型并说明依据。</li>
+<li>复盘一次：你曾经在哪道题上浪费了大量时间？如果用本章的流程，能否在更早阶段发现方向错误？</li>
+</ol>
+<h2 id="sec-166" class="hd hd-1">第 27 讲 分题型思维模板（上）：校验类与算法类</h2>
+<h3 id="sec-167" class="hd hd-2">27.1 模板思维：把解题变成填空</h3>
+<p>所谓"思维模板"，就是把一类题的解题过程固化成一套固定问题清单。遇到同类题，按清单逐项回答，就不会无从下手。</p>
+<h3 id="sec-168" class="hd hd-2">27.2 校验类题目的思维模板</h3>
+<p><strong>特征</strong>：程序接受输入，输出"正确/错误"，核心是一个比较操作。</p>
+<p><strong>思维清单：</strong></p>
+<ol>
+<li>成功和失败的分支在哪？（找 <code>strcmp</code>/<code>memcmp</code>/<code>cmp</code> + <code>jne</code>）</li>
+<li>比较的两边分别是什么？（一边是用户输入，一边是常量或计算结果）</li>
+<li>输入在比较前经过了什么变换？（列出每一步变换）</li>
+<li>每一步变换可逆吗？（XOR、加减、置换可逆；哈希不可逆）</li>
+<li>从目标值逆推输入，写出脚本。</li>
+<li>代回原程序验证。</li>
+</ol>
+<p><strong>关键思维：永远从比较点往回推，而不是从输入往前推。</strong> 从输入往前推，你不知道中间变换什么时候结束；从比较点往回推，每一步的目标都很明确——"把当前数据还原成变换前的样子"。</p>
+<h3 id="sec-169" class="hd hd-2">27.3 算法类题目的思维模板</h3>
+<p><strong>特征</strong>：有明显的数学运算、魔数、查表，输入被复杂变换。</p>
+<p><strong>思维清单：</strong></p>
+<ol>
+<li>有没有 recognizable 的魔数？（查第 11、12 讲的算法指纹表）</li>
+<li>有没有 API 直接暴露算法？（<code>CryptEncrypt</code>、<code>EVP_*</code>、Python 的 <code>hashlib</code>）</li>
+<li>数据结构长什么样？（256 项 S 盒 → RC4/AES；64 轮 + 魔数 → TEA/DES）</li>
+<li>是标准算法还是魔改？（先按标准算法写解密，对不上再找差异）</li>
+<li>密钥/常量从哪来？（硬编码、计算得出、还是从输入派生）</li>
+<li>写出逆过程，用小数据验证正确性。</li>
+</ol>
+<p><strong>关键思维：识别算法时，先怀疑常见算法，再考虑魔改。</strong> 逆向中的"新算法"其实极少，绝大多数是 TEA、RC4、XOR、Base64 的变形。看到 256 长度数组和 <code>&amp;0xff</code>，先当 RC4 试；看到 DELTA 魔数，先当 TEA 试。</p>
+<h3 id="sec-170" class="hd hd-2">27.4 当算法识别不出来时怎么办</h3>
+<p>这是最常见的卡点。按以下顺序处理：</p>
+<ol>
+<li><strong>看输入输出关系</strong>：给几组不同输入，观察输出长度和值的变化规律。输出长度不变 → 分组加密/哈希；输出长度随输入变 → 流式加密。</li>
+<li><strong>找不可逆点</strong>：如果算法里出现了 <code>mul</code> 且没有对应的除法，或出现了哈希结构，说明不能逆推，只能正向爆破/约束求解。</li>
+<li><strong>隔离单步</strong>：把算法拆成小函数，逐个分析。用动态调试记录一个函数的输入输出对，看它是不是已知的简单变换。</li>
+<li><strong>暴力辨认</strong>：用 Z3 把输入输出关系建模，让求解器反推输入（见第 19 讲），有时不需要完全认出算法也能解题。</li>
+<li><strong>搜索常量</strong>：把魔数放到搜索引擎或常量数据库（如 NIST 算法常量表）里查，往往能直接确认算法。</li>
+</ol>
+<h3 id="sec-171" class="hd hd-2">27.5 一个完整的思维示范</h3>
+<p>假设 F5 得到：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">for (i = 0; i &lt; 32; i++) {
+  v = (input[i] ^ key[i % 4]) + 0x17;
+  target[i] = v &amp; 0xff;
+}
+if (memcmp(target, expected, 32) == 0) puts("Correct");</code></pre></div>
+<p>思维过程：</p>
+<ol>
+<li><strong>定位</strong>：<code>memcmp</code> 是分叉点，<code>expected</code> 是比较目标（事实）。</li>
+<li><strong>抽象</strong>：这是"逐字节变换 + 比较"（意图层）。</li>
+<li><strong>变换拆分</strong>：<code>xor key[i%4]</code> → <code>add 0x17</code> → <code>&amp;0xff</code>，三步都可逆。</li>
+<li><strong>提取常量</strong>：dump <code>key</code>（4 字节）和 <code>expected</code>（32 字节）。</li>
+<li><strong>逆序还原</strong>：先减去 0x17（注意保留字节范围），再 XOR 对应密钥字节。</li>
+<li><strong>验证</strong>：把结果代回，确认 <code>memcmp</code> 相等。</li>
+</ol>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">key = <span class="kw">bytes</span>.fromhex(<span class="st">"..."</span>)       <span class="cm"># <span class="nm">4</span> 字节</span>
+expected = <span class="kw">bytes</span>.fromhex(<span class="st">"..."</span>)  <span class="cm"># <span class="nm">32</span> 字节</span>
+flag = <span class="kw">bytes</span>(((b - 0x17) &amp; 0xff) ^ key[i % <span class="nm">4</span>] <span class="kw">for</span> i, b <span class="kw">in</span> enumerate(expected))</code></pre></div>
+<p>注意第 5 步的顺序：正向是"先 XOR 后加"，逆向必须"先减后 XOR"，且每一步都要保持字节范围（<code>&amp;0xff</code>）。<strong>这是逆推时最容易错的地方——顺序必须严格反过来。</strong></p>
+<h3 id="sec-172" class="hd hd-2">27.6 动手做</h3>
+<ol>
+<li>用上面的思维清单分析一道逐字符校验题，把每一步的答案写下来，然后写出逆过程脚本。</li>
+<li>故意把一道题的变换步数增加一层（比如 XOR 后再加一个下标），观察你的逆过程脚本需要怎么改。</li>
+</ol>
+<h2 id="sec-173" class="hd hd-1">第 28 讲 分题型思维模板（下）：加壳、混淆、VM 与多语言</h2>
+<h3 id="sec-174" class="hd hd-2">28.1 加壳类题目的思维模板</h3>
+<ol>
+<li>确认壳类型（DIE/PEiD），能自动脱就自动脱（UPX）。</li>
+<li>自动脱失败 → 手动找 OEP：跟踪 <code>pushad</code>/<code>popad</code>，或下内存写入断点。</li>
+<li>dump 内存 → 修复 IAT → 得到脱壳后的程序。</li>
+<li><strong>脱壳不是终点</strong>，脱壳后回到第 26 讲的流程重新分析。</li>
+<li>遇到反调试/反 dump，先 patch 检测逻辑或隐藏调试器。</li>
+</ol>
+<p><strong>关键思维：壳只是"包装"，你的目标是里面的逻辑。不要在壳的解压算法上纠缠，除非题目本身就是考脱壳。</strong> 判断方法：如果脱壳后是一道普通校验题，那壳就是障碍；如果脱壳后仍有 VM 或强混淆，那才是考点。</p>
+<h3 id="sec-175" class="hd hd-2">28.2 花指令与混淆类题目的思维模板</h3>
+<ol>
+<li>先判断混淆类型：花指令（垃圾字节）、控制流平坦化（大 switch）、虚假分支（恒真恒假条件）。</li>
+<li>花指令 → 动态执行记录实际走过的地址，或 patch 垃圾字节。</li>
+<li>平坦化 → 动态跟踪 <code>state</code> 变量的变化序列，重建真实执行顺序。</li>
+<li>找"不变量"：无论怎么混淆，最终的比较操作、算法魔数、字符串常量还在。从这些不变量切入。</li>
+<li>用动态调试"用脚投票"：程序实际执行了什么，就是真实逻辑；没执行的都是噪音。</li>
+</ol>
+<p><strong>关键思维：混淆改变的是代码的"形态"，不改变程序的"行为"。</strong> 所以动态观察往往比静态死磕更高效——程序的真实行为骗不了人。</p>
+<h3 id="sec-176" class="hd hd-2">28.3 VM 类题目的思维模板</h3>
+<ol>
+<li>找到 VM 结构：入口（保存上下文）、dispatcher（分发）、handler 表、出口。</li>
+<li>识别 dispatcher：通常是 <code>jmp [table + opcode*4]</code> 或大 switch。</li>
+<li>逐个分析 handler 的语义，建立 opcode 对照表（这是最核心也最费时的一步）。</li>
+<li>找到字节码数据，用你自己的指令集"反汇编"出来。</li>
+<li>理解还原后的逻辑，按普通题处理。</li>
+</ol>
+<p><strong>关键思维：把 VM 当成一门"新语言"，你在做的是"反编译一门自定义语言"。</strong> 不要试图在原生汇编层面理解整个程序，而是先建立"指令集字典"，再用字典去读字节码。</p>
+<h3 id="sec-177" class="hd hd-2">28.4 多语言/跨平台题目的思维模板</h3>
+<div class='table-wrap'><table><thead><tr><th>语言/平台</th><th>识别特征</th><th>思维要点</th></tr></thead><tbody>
+<tr><td>.NET</td><td>导入 <code>mscoree.dll</code>、dnSpy 可直接打开</td><td>IL 保留了类型信息，优先读反编译的 C#</td></tr>
+<tr><td>Java/Android</td><td><code>.class</code>/<code>dex</code>、Jadx</td><td>关注 Java 层的字符串和校验方法</td></tr>
+<tr><td>Python</td><td>PyInstaller 的 <code>MEI</code> 目录、pyc 头</td><td>先解包提取 pyc，再反编译；注意 Python 版本</td></tr>
+<tr><td>JavaScript</td><td><code>eval</code>、字符串拼接、混淆变量名</td><td>先格式化，再动态执行关键片段</td></tr>
+<tr><td>Go/Rust</td><td>大量运行时符号、特殊字符串</td><td>关注 main 包和自定义函数，跳过运行时代码</td></tr>
+</tbody></table></div>
+<p><strong>关键思维：用对工具，思维成本骤降。</strong> .NET 题用 IDA 硬啃是灾难，用 dnSpy 可能五分钟就看完。识别语言是"第一小时"最重要的判断之一。</p>
+<h3 id="sec-178" class="hd hd-2">28.5 跨平台题目的通用思维</h3>
+<p>无论什么语言，最终都回到同一个抽象：<strong>输入 → 变换 → 比较/输出</strong>。语言只是变换的"载体"。把语言特有的语法噪音过滤掉，抓住这三个环节，思维就不会乱。</p>
+<h3 id="sec-179" class="hd hd-2">28.6 动手做</h3>
+<ol>
+<li>找一道加壳题和一道 VM 题，分别按上面的模板写出你的分析计划（只写计划，不执行），对照模板检查有没有遗漏的步骤。</li>
+<li>用 dnSpy 打开一个 .NET CrackMe，对比用 IDA 打开同一个程序的体验，体会"用对工具"对思维效率的影响。</li>
+</ol>
+<h2 id="sec-180" class="hd hd-1">第 29 讲 卡壳排查、认知陷阱与复盘方法</h2>
+<h3 id="sec-181" class="hd hd-2">29.1 卡壳时先分类，再行动</h3>
+<p>卡住时最忌讳的是"继续做同样的事"。先停下来，把卡点归类：</p>
+<div class='table-wrap'><table><thead><tr><th>卡点类型</th><th>表现</th><th>应对方向</th></tr></thead><tbody>
+<tr><td>找不到入口</td><td>不知道从哪开始</td><td>回第 26 讲的信息收集流程</td></tr>
+<tr><td>看不懂代码</td><td>伪代码像天书</td><td>回到汇编、缩小范围、查算法指纹</td></tr>
+<tr><td>验证失败</td><td>逆出的 flag 不对</td><td>检查字节序、逆运算顺序、符号数、掩码运算</td></tr>
+<tr><td>动态断不下来</td><td>断点没触发</td><td>输入来源找错了、有反调试、或路径不同</td></tr>
+<tr><td>算法认不出</td><td>变换逻辑陌生</td><td>用输入输出分析、Z3、常量搜索</td></tr>
+</tbody></table></div>
+<p><strong>"验证失败"是最高频的卡点，而且原因往往很具体</strong>：逆运算顺序错了、漏了 <code>&amp;0xff</code>、字节序搞反、密钥下标从 0 还是从 1 开始。这时候不要怀疑算法理解错了，先逐项检查这几个高频错误。</p>
+<h3 id="sec-182" class="hd hd-2">29.2 逆向中的七个认知陷阱</h3>
+<ol>
+<li><strong>过度相信 F5 伪代码</strong>。伪代码会丢失精度，位运算、栈布局、浮点行为都可能被美化。关键时刻回到汇编。</li>
+<li><strong>看到比较就以为是终点</strong>。程序可能有多个诱饵比较，真正的判断在后面。<strong>用动态调试确认哪个分支真正决定成功。</strong></li>
+<li><strong>忽略未执行的代码</strong>。大型程序里有大量初始化/错误处理代码，它们不是考点。用动态执行轨迹过滤。</li>
+<li><strong>把"没找到"当成"不存在"</strong>。字符串可能在资源段、宽字符、或运行时解密。找不到提示不等于没有提示。</li>
+<li><strong>确认偏误</strong>。一旦认定"这是 RC4"，就会不自觉地把所有现象往 RC4 上套。<strong>主动找反证：如果它不是 RC4，哪里说不通？</strong></li>
+<li><strong>在错误的环境里调试</strong>。32 位程序用 64 位调试器、缺少依赖库、工作在错误目录，都可能导致行为异常。</li>
+<li><strong>忘记题目的分值</strong>。一道 100 分的题不一定要 100% 还原算法，有时找到比较点就能爆破或绕过。<strong>先想清楚"解出这道题需要做到什么程度"。</strong></li>
+</ol>
+<h3 id="sec-183" class="hd hd-2">29.3 验证失败时的系统排查清单</h3>
+<p>当你算出 flag 但程序说"错误"时，按顺序检查：</p>
+<ol>
+<li>逆运算的顺序是否严格反过来了？（正向 A→B→C，逆向必须 C→B→A）</li>
+<li>加减运算是否做了字节范围截断？（机器上整数会溢出回绕）</li>
+<li>字节序对吗？（x86 是小端，dump 出来的数据可能需要反转）</li>
+<li>下标基准对吗？（C 数组从 0 开始，但有的算法从 1 开始计数）</li>
+<li>有符号/无符号判断对吗？（<code>sar</code> 是有符号右移，<code>shr</code> 是无符号）</li>
+<li>目标数组 dump 全了吗？（常量的长度、起始地址对不对）</li>
+<li>有没有多步变换中漏掉的一步？（重新对照汇编逐句核对）</li>
+</ol>
+<h3 id="sec-184" class="hd hd-2">29.4 换工具、换视角、换环境</h3>
+<p>卡住超过 20 分钟，强制自己做一次切换：</p>
+<ul>
+<li><strong>换工具</strong>：IDA 看不明白 → Ghidra 的伪代码；静态看不出 → 动态调试；调试器看不出 → 写脚本模拟执行。</li>
+<li><strong>换视角</strong>：从"读代码"切到"看数据"——在内存窗口搜索 flag 格式、观察缓冲区变化，常常有惊喜。</li>
+<li><strong>换环境</strong>：换一台机器、换一个调试器、用虚拟机快照回到初始状态，排除环境干扰。</li>
+<li><strong>换任务</strong>：暂时放下这道题去做别的，潜意识会在后台继续处理。很多"灵光一现"出现在散步时。</li>
+</ul>
+<h3 id="sec-185" class="hd hd-2">29.5 复盘方法：把一道题变成永久能力</h3>
+<p>做完题不等于学会。<strong>复盘是把"这一次的成功"变成"下一次的能力"的关键步骤。</strong> 每道题做完后问自己：</p>
+<ol>
+<li>这道题的核心考点是什么？（一句话概括）</li>
+<li>我从哪个线索切入？这个切入方法还能用在哪类题？</li>
+<li>我卡在哪里？卡了多久？如果重来，能更快吗？</li>
+<li>有没有更优解法？（比如用 Z3 代替手工逆推）</li>
+<li>这道题里的算法指纹/代码模式，值得记进我的 cheat sheet 吗？</li>
+</ol>
+<p>把这些写进"线索板"的复盘区，慢慢你就有了自己的解题模式库。<strong>高手和新手的差距，本质上就是这种模式库的大小和检索速度。</strong></p>
+<h3 id="sec-186" class="hd hd-2">29.6 建立自己的思维清单</h3>
+<p>把本讲和前面几讲的内容浓缩成一张随身清单：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">【第一小时】file/查壳/strings/导入表/运行 → 判断题型 → 选工具
+【校验题】找比较点 → 倒推变换 → 逆序还原 → 验证
+【算法题】查魔数 → 认算法 → 提密钥 → 写逆过程
+【卡壳】分类 → 排查清单 → 20分钟强制切换 → 换工具/视角/环境
+【验证失败】查顺序/回绕/字节序/下标/符号/常量/漏步
+【做完】复盘：考点/切入/卡点/更优解/记入笔记</code></pre></div>
+<p>打印出来贴在手边，做题时刻意按清单走。一个月后，这些思维会变成你的本能。</p>
+<h3 id="sec-187" class="hd hd-2">29.7 动手做</h3>
+<ol>
+<li>找一道你做过的题，严格按 29.5 的五个问题写一份复盘，重点写"卡点"和"如果重来"。</li>
+<li>把 29.6 的清单抄到你的笔记里，下次做题时对照使用，一周后记录哪些条目最常帮你脱困。</li>
+</ol>
+<blockquote class="callout">第 25-29 讲建立了思维框架。接下来的第 30 讲会把"看不懂代码"这个核心瓶颈拆成六种可操作的解读工具，第 31 讲用五个带内心独白的实战案例展示完整的思考路径，第 32 讲讲如何训练你的解题大脑，第 33 讲则把所有思维方法浓缩成一张一页纸速查表。想深入掌握思维方式，请继续。</blockquote>
+<h2 id="sec-188" class="hd hd-1">第 30 讲 深度代码解读思维：读懂一段看不懂的代码</h2>
+<h3 id="sec-189" class="hd hd-2">30.1 为什么"看不懂代码"是核心瓶颈</h3>
+<p>做题时真正卡住你的，往往不是工具不会用，而是<strong>面对一段汇编或伪代码，脑子里没有可执行的解读策略</strong>。你会盯着屏幕滚动，希望"看着看着就懂了"——这不是思维，这是等待灵感。</p>
+<p>本讲给出六种具体的思维工具。它们不是知识点，而是<strong>当你面对陌生代码时可以主动调用的动作</strong>。遇到看不懂的代码，从这六种工具里挑一种或几种组合使用。</p>
+<h3 id="sec-190" class="hd hd-2">30.2 切片法：把任何函数切成三段</h3>
+<p>无论函数多长，先强制把它切成三段：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">[入口段：输入从哪来] → [核心段：数据在做什么变换] → [出口段：结果到哪去]</code></pre></div>
+<p>操作方法：</p>
+<ol>
+<li><strong>找入口段</strong>：看函数开头几条指令，哪些是参数（寄存器/栈），复制到哪里。</li>
+<li><strong>找出口段</strong>：看 <code>ret</code> 之前，返回值放在哪个寄存器，有没有 <code>printf</code>/<code>memcmp</code> 之类的调用。</li>
+<li><strong>中间就是核心段</strong>：现在你知道它在处理什么数据、产出什么结果，再读中间就容易得多。</li>
+</ol>
+<p><strong>示例</strong>：一个 200 行的函数，入口把 <code>rcx</code>（第一个参数）复制到一个局部变量，出口调用 <code>strcmp</code> 并返回结果。那么无论中间 190 行多复杂，你都已经知道：这是一个"对输入字符串做某种变换，然后与某个常量比较"的函数。你的任务从"读懂 200 行"缩小为"读懂中间那段变换"。</p>
+<h3 id="sec-191" class="hd hd-2">30.3 数据追踪法：盯住一个变量走到底</h3>
+<p>当代码里变量太多看不过来时，<strong>只盯住一个关键变量</strong>，从它出现的地方一路追到消失：</p>
+<ul>
+<li>这个变量第一次被赋值是什么？（初始状态）</li>
+<li>它在哪里被修改？（每一次修改就是一个变换）</li>
+<li>它最后被用在哪里？（决定输出或比较）</li>
+</ul>
+<p>把所有修改点按顺序列出来，你就得到了这个变量的"生命周期"，变换链条自然浮现：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">input[i] → v1 = input[i] ^ key → v2 = v1 + 0x17 → output[i] = v2 &amp; 0xff</code></pre></div>
+<p><strong>为什么有效</strong>：人的工作记忆一次只能处理有限信息。数据追踪法把注意力聚焦在一条线索上，避免被无关变量干扰。</p>
+<h3 id="sec-192" class="hd hd-2">30.4 反转法：从结果倒推过程</h3>
+<p>当正向逻辑很复杂（多分支、多循环），但<strong>结果的形式很明确</strong>时，从结果倒推。</p>
+<p>适用场景：</p>
+<ul>
+<li>输出是固定长度的数组（flag 长度已知）→ 倒推每个字节的来源；</li>
+<li>有一个明确的比较目标 → 从目标值反向还原；</li>
+<li>输出格式固定（如 <code>flag{...}</code>）→ 用已知前缀反推密钥或初始状态。</li>
+</ul>
+<p><strong>示例</strong>：一个算法逐字节加密，但你知道明文前 6 个字符一定是 <code>flag{</code>。把这 6 个字符和密文前 6 字节对比，就能直接算出密钥流的前 6 字节——如果密钥是周期性的（如 RC4 的短密钥），这可能直接暴露整个密钥。</p>
+<h3 id="sec-193" class="hd hd-2">30.5 类比法：这段代码"像什么"</h3>
+<p>把陌生的代码和你已经熟悉的东西做类比：</p>
+<div class='table-wrap'><table><thead><tr><th>代码特征</th><th>类比成什么</th><th>立刻想到的知识</th></tr></thead><tbody>
+<tr><td>数组 + 下标循环 + 累加</td><td>哈希/校验和</td><td>可能是 CRC 或自定义 hash</td></tr>
+<tr><td>256 项数组 + 两个索引 + 交换</td><td>RC4 的 S 盒</td><td>PRGA 密钥流生成</td></tr>
+<tr><td>位移 + 异或 + 魔数常量</td><td>TEA/XTEA/哈希轮函数</td><td>查算法指纹表</td></tr>
+<tr><td>递归调用 + 二叉树结构</td><td>树的遍历</td><td>中序/后序遍历</td></tr>
+<tr><td>大量函数调用 + 全局状态</td><td>状态机</td><td>找状态转移条件</td></tr>
+</tbody></table></div>
+<p><strong>类比思维的价值</strong>：它让你调用已有的知识框架，而不是从零理解每一行。逆向中的"经验"很大程度上就是一个不断扩充的类比库。</p>
+<h3 id="sec-194" class="hd hd-2">30.6 边界法：用极端输入推断逻辑</h3>
+<p>不想读代码？那就<strong>用输入去"问"程序</strong>：</p>
+<div class='table-wrap'><table><thead><tr><th>输入</th><th>观察什么</th><th>能推断什么</th></tr></thead><tbody>
+<tr><td>空字符串</td><td>是否崩溃、输出什么</td><td>最小长度要求、是否有边界检查</td></tr>
+<tr><td>1 个字符</td><td>输出变化</td><td>是否逐字符处理</td></tr>
+<tr><td>超长字符串</td><td>在哪截断/崩溃</td><td>缓冲区大小、循环终止条件</td></tr>
+<tr><td>全零/全 A</td><td>输出规律</td><td>变换是否与位置相关</td></tr>
+<tr><td>只改一个字符</td><td>输出变化范围</td><td>是否扩散（雪崩效应）→ 判断哈希/分组加密</td></tr>
+</tbody></table></div>
+<p><strong>这是一个被严重低估的方法</strong>：很多算法识别不需要读代码，通过输入输出的行为测试就能判断类型。例如改一个字符导致输出完全不同 → 有扩散 → 大概率是哈希或分组加密；输出只变一个字节 → 逐字节变换 → 大概率是 XOR 或替换。</p>
+<h3 id="sec-195" class="hd hd-2">30.7 实验法：主动构造输入验证理解</h3>
+<p>当你对一段代码有了假设，不要停留在"我觉得是"，而要<strong>构造一个能区分"是"与"不是"的输入去验证</strong>：</p>
+<ul>
+<li>假设是"逐字节 XOR 固定密钥"→ 输入全 A，看输出是否全相同；</li>
+<li>假设密钥长度是 4 → 输入 <code>AAAA</code> 和 <code>AAAAB</code>，看输出前 4 字节是否相同；</li>
+<li>假设存在字节范围截断 → 输入一个会让中间值超过 255 的字符，看是否回绕。</li>
+</ul>
+<p><strong>思维纪律</strong>：每次实验前写下"如果我的假设成立，应该看到 X；如果不成立，应该看到 Y"。这样才能从实验中真正学到东西，而不是"哦，输出变了"就结束了。</p>
+<h3 id="sec-196" class="hd hd-2">30.8 综合案例：一段复杂代码的完整解读</h3>
+<p>下面是综合运用六种工具的过程示范。假设 F5 得到：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">c</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">int mysterious(char *s) {
+  int h = 5381;
+  for (int i = 0; s[i]; i++)
+    h = ((h &lt;&lt; 5) + h) + s[i];
+  return h;
+}</code></pre></div>
+<p>思维过程：</p>
+<ol>
+<li><strong>切片</strong>：入口是字符串 <code>s</code>，出口返回整数 <code>h</code>，中间是循环 → 这是一个"字符串 → 整数"的函数。</li>
+<li><strong>数据追踪</strong>：盯住 <code>h</code>：初始 5381，每次迭代变成 <code>(h&lt;&lt;5)+h+s[i]</code>，即 <code>h*33 + s[i]</code>。</li>
+<li><strong>类比</strong>：<code>h*33 + c</code> 是 DJB2 哈希的标志性形式，初始魔数 5381 更是直接确认。</li>
+<li><strong>反转</strong>：哈希不可逆 → 如果只是比较哈希值，需要爆破或查字典；如果算法用哈希做密钥派生，则顺着用。</li>
+<li><strong>边界</strong>：空字符串返回 5381，单字符返回 <code>5381*33 + c</code> → 验证了初始值和递推式。</li>
+<li><strong>实验</strong>：输入 "a" 和 "b"，看输出差是否为 1（因为 <code>h*33</code> 相同，只有 <code>+c</code> 不同）→ 确认理解正确。</li>
+</ol>
+<p>结论：这是 DJB2 哈希，常用于字符串哈希和简单的完整性检查。这个结论是靠六种工具一步步逼出来的，不是"灵感"。</p>
+<h3 id="sec-197" class="hd hd-2">30.9 动手做</h3>
+<ol>
+<li>找一段你当时看不懂的代码，用切片法把它切成三段，再用数据追踪法盯住一个变量，写下它的生命周期。</li>
+<li>对同一个函数，分别用类比法和边界法分析，对比两种路径得出什么结论——哪种更快？为什么？</li>
+</ol>
+<h2 id="sec-198" class="hd hd-1">第 31 讲 实战思维案例库：五个题目的内心独白</h2>
+<h3 id="sec-199" class="hd hd-2">31.1 为什么要看"思维过程"而不只是"答案"</h3>
+<p>网上大部分 writeup 只写"我在这里下断点，然后 dump 出数组，逆推出 flag"——这是<strong>结论</strong>，不是<strong>思维过程</strong>。它省略了最关键的部分：作者为什么知道要在那里下断点？为什么选择 dump 数组而不是爆破？</p>
+<p>本讲用"内心独白"的形式还原五个题目的真实思维路径，让你看到高手在每一步<strong>做了什么判断、排除了什么选项、为什么选择这条路</strong>。</p>
+<h3 id="sec-200" class="hd hd-2">31.2 案例一：不被表象吓住</h3>
+<p><strong>题目现象</strong>：程序有 3000 行汇编，到处是跳转，看起来极其复杂。</p>
+<p><strong>内心独白：</strong></p>
+<blockquote class="callout">"3000 行？先别慌。第一步不是读代码，是找分叉点。strings 里有没有 'Correct'？有。交叉引用找到引用它的函数——好，3000 行缩小到 1 个函数，大概 80 行。  这 80 行里看到了 <code>strcmp</code>，比较目标是 <code>expected</code>。那我不需要理解前面所有逻辑，只需要知道 <code>buf</code> 是怎么算出来的。切片：<code>buf</code> 在入口分配，在中间被一个循环填充，在出口比较。  中间循环 20 行，看起来是逐字节 XOR。dump <code>expected</code>，试 XOR 0x20——出来的全是乱码。等等，密钥不是固定值？看循环里有个 <code>[i%4]</code>，哦，是 4 字节循环密钥。dump 那 4 字节，再试——出来了 <code>flag{</code>。  这道题的'3000 行'是障眼法，真正要读的只有 20 行。<strong>先找终点，再倒推路径</strong>，不要从头读到尾。"</blockquote>
+<p><strong>提炼的思维</strong>：代码量不等于难度。先定位分叉点，把问题缩小到最小范围，再投入精读。</p>
+<h3 id="sec-201" class="hd hd-2">31.3 案例二：静态与动态的配合</h3>
+<p><strong>题目现象</strong>：静态分析看不到 flag 相关数据，数组似乎是运行时生成的。</p>
+<p><strong>内心独白：</strong></p>
+<blockquote class="callout">"F5 里 <code>target</code> 数组全是 0，但比较时它明显有值——说明是运行时填充的。静态看不出来了，转动态。  在哪下断点？在 <code>memcmp</code> 调用处，因为它一定在数组填充之后。断下后查看 <code>target</code> 指向的内存——有数据了，dump 32 字节。  但dump 出来的数据是每次运行都不同的？那说明和随机数或时间有关。往回看 <code>target</code> 的填充循环，有个 <code>rand()</code> 调用。种子是固定的吗？看开头有 <code>srand(0x1234)</code>——固定种子，那每次运行结果应该一样才对……除非 <code>srand</code> 后面还有别的调用。  单步到 <code>srand</code>，发现参数是 <code>time(NULL)</code> 不是常量——静态看到的 <code>0x1234</code> 是另一个分支。<strong>动态执行路径和静态代码不一致</strong>，这说明有分支我没走到。回到静态，找 <code>time</code> 的交叉引用，找到真正的初始化分支。  结论：不要相信静态看到的那条路径就是实际执行的路径。动态调试的价值就是告诉你'实际走的是哪条'。"</blockquote>
+<p><strong>提炼的思维</strong>：当静态数据与运行时数据矛盾时，以动态为准，然后回头找静态分析漏掉的路径。</p>
+<h3 id="sec-202" class="hd hd-2">31.4 案例三：算法魔改的识别</h3>
+<p><strong>题目现象</strong>：有明显的加密结构，但标准算法解出来不对。</p>
+<p><strong>内心独白：</strong></p>
+<blockquote class="callout">"看到 256 项 S 盒和按位与掩码，第一反应是 RC4。写了个标准 RC4 解密，结果不对。  按排查清单来：是 RC4 吗？KSA 阶段——标准 RC4 的 j 更新是 <code>j = (j + S[i] + key[i%keylen]) % 256</code>。看反汇编，这里多了一个 <code>+ i</code>！魔改点找到了。  PRGA 阶段呢？标准是 <code>S[i]</code> 和 <code>S[j]</code> 交换后取 <code>S[(S[i]+S[j])%256]</code>。看代码——索引是 <code>S[i] ^ S[j]</code> 而不是加。第二个魔改点。  把这两个改动写进我的解密脚本，再试——对了。  这次的经验：<strong>识别算法只是第一步，永远要逐句核对实现细节</strong>。魔改题的考点就在那 1-2 处改动上。"</blockquote>
+<p><strong>提炼的思维</strong>：识别算法后必须验证实现细节是否标准。"对不上"不是算法认错了，就是实现被改了——逐句对照找差异。</p>
+<h3 id="sec-203" class="hd hd-2">31.5 案例四：混淆题的梳理</h3>
+<p><strong>题目现象</strong>：F5 伪代码是一个巨大的 switch，几百个 case。</p>
+<p><strong>内心独白：</strong></p>
+<blockquote class="callout">"控制流平坦化。静态读这个 switch 没有意义——执行顺序被 state 变量打乱了。  转到动态：在 dispatcher 处下断点，每次断下记录 state 的值。跑了十几步，得到序列：0→7→3→12→5→...。  这些数字对应哪些 case？回去看静态代码，把每个 case 的编号和它做的事对应起来，按动态序列重排——真实的执行路径出来了。  重排后发现只有 8 个 case 真正执行过，其余 700 多个是干扰。<strong>代码量是假象，动态执行轨迹才是真相。</strong>  现在分析这 8 个 case：一个简单的逐字符比较。dump 目标数组，逆推，完成。"</blockquote>
+<p><strong>提炼的思维</strong>：面对控制流混淆，不要试图静态还原整个控制流。用动态轨迹确定真实路径，只分析走过的代码。</p>
+<h3 id="sec-204" class="hd hd-2">31.6 案例五：一次失败的复盘</h3>
+<p><strong>题目现象</strong>：一道 VM 题，我卡了两小时最后没做出来。</p>
+<p><strong>内心独白（事后复盘）：</strong></p>
+<blockquote class="callout">"哪里开始错的？一看到是 VM，我就决定'完整逆向所有 handler'。列了 40 多个 handler，想全部分析完再理解逻辑。这是策略错误。  正确做法应该是：先找关键 handler。VM 程序最终要输出或比较，所以找与比较/输出相关的 handler（比如调用 <code>putchar</code> 的），从它倒推需要什么状态，再找产生这个状态的 handler。<strong>只分析相关的 handler，而不是全部。</strong>  第二个错误：没有及早求助。卡了 40 分钟时应该换思路或看提示，我硬扛到两小时。规则是'20 分钟无进展就切换'——换工具、换视角、换任务，哪怕先做别的题。  第三个错误：没有记录。我脑子里记着'handler 3 好像是加法'，但没写下来，分析到后面就乱了。<strong>线索板不是可选项，是必需品。</strong>  如果重来：先找终点 handler → 从终点倒推 → 只分析相关 handler → 每分析一个就记入线索板 → 20 分钟无进展就切换。"</blockquote>
+<p><strong>提炼的思维</strong>：失败复盘比成功经验更有价值。重点找"策略错误"而非"知识缺失"——知识可以查，策略错了会让你在错误的方向上狂奔。</p>
+<h3 id="sec-205" class="hd hd-2">31.7 从案例中提炼的通用思维模式</h3>
+<p>把五个案例的共同点抽出来：</p>
+<ol>
+<li><strong>先找终点，再倒推</strong>：不要从入口顺着读，先定位决定成功/失败的判断点。</li>
+<li><strong>缩小范围</strong>：3000 行 → 1 个函数 → 20 行循环，每一步都在缩小。</li>
+<li><strong>静态定方向，动态定真相</strong>：两者矛盾时信动态，然后回头找静态漏掉的东西。</li>
+<li><strong>识别算法后验证细节</strong>：魔改题考的就是那 1-2 处不同。</li>
+<li><strong>混淆题看执行轨迹，不看代码全貌</strong>：真实执行的才重要。</li>
+<li><strong>记录是思维的外置硬盘</strong>：脑子不够用时，线索板来凑。</li>
+<li><strong>20 分钟没进展就切换</strong>：死磕不是毅力，是策略失败。</li>
+</ol>
+<h3 id="sec-206" class="hd hd-2">31.8 动手做</h3>
+<ol>
+<li>找一道你做过的题，用"内心独白"的形式重写解题过程，重点写"为什么选择这一步"和"排除了什么选项"。</li>
+<li>找一道你失败的题，按案例五的格式做复盘，找出至少一个"策略错误"而不只是"知识缺失"。</li>
+</ol>
+<h2 id="sec-207" class="hd hd-1">第 32 讲 元认知：训练你的解题大脑</h2>
+<h3 id="sec-208" class="hd hd-2">32.1 什么是元认知，为什么它比知识更重要</h3>
+<p><strong>元认知就是"关于思考的思考"</strong>——你能不能观察自己的思维过程，发现其中的问题，并主动调整。</p>
+<p>知识会过时（工具会换、算法会变），但元认知能力一旦形成，可以迁移到任何新题型、新工具上。它决定你的成长速度。</p>
+<p>元认知在逆向中的三个层次：</p>
+<div class='table-wrap'><table><thead><tr><th>层次</th><th>表现</th><th>例子</th></tr></thead><tbody>
+<tr><td>知道</td><td>我知道这个算法</td><td>"这是 RC4"</td></tr>
+<tr><td>知道怎么知道</td><td>我知道我是怎么认出它的</td><td>"因为看到 256 数组和交换操作"</td></tr>
+<tr><td>知道自己不知道</td><td>我知道我的判断有多可靠</td><td>"我不确定是不是魔改 RC4，需要核对 KSA"</td></tr>
+</tbody></table></div>
+<p><strong>高手和普通人的关键差别在第三层</strong>：他们清楚自己哪些判断是确定的、哪些是猜测，因而知道该在哪里投入验证精力。</p>
+<h3 id="sec-209" class="hd hd-2">32.2 刻意练习：不是做题数量，而是练习质量</h3>
+<p>"做 100 道题"不等于进步。有效练习需要四个要素：</p>
+<ol>
+<li><strong>明确目标</strong>：每道题练什么？"练算法识别"和"练动态追踪"是两种不同的训练，不要混在一起。</li>
+<li><strong>适度难度</strong>：题目应该让你"努力一下能做出"，太简单没收益，太难只会挫败。大约 70% 成功率是理想区间。</li>
+<li><strong>即时反馈</strong>：做完后立刻对答案、看 writeup，确认思路是否正确。不要做完就扔。</li>
+<li><strong>针对性纠正</strong>：找到你的具体弱点（比如"总是忘记检查字节序"），专门找这类题练。</li>
+</ol>
+<p><strong>实践建议</strong>：每周挑一道题做"刻意练习版"——不只看答案，而是记录完整思维过程，对照高手的 writeup 找出思路差异，写下"下次我会怎么做"。</p>
+<h3 id="sec-210" class="hd hd-2">32.3 建立错题本与模式库</h3>
+<p>准备两个文档：</p>
+<p><strong>错题本</strong>（记录失败）：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">题目：[名称]
+卡点：[具体卡在哪一步]
+原因分类：[知识缺失 / 策略错误 / 操作失误 / 心态问题]
+如果重来：[具体的不同做法]
+教训：[一句话，可迁移到别的题]</code></pre></div>
+<p><strong>模式库</strong>（记录成功经验）：</p>
+<div class="code-wrap"><div class="code-head"><span class="code-lang">text</span><button class="copy-btn" type="button" aria-label="复制代码">复制</button></div><pre><code class="code-body">模式名：逐字节 XOR + 常量比较
+识别特征：[循环中有 xor，出口有 memcmp]
+切入方法：[dump 目标数组，逆序还原]
+注意事项：[检查密钥是否循环、注意 &amp;0xff]
+例题：[题目1、题目2]</code></pre></div>
+<p><strong>为什么有效</strong>：大脑不擅长长期记住细节，但擅长模式识别。把经验整理成模式库，就是在给大脑"安装"可复用的思维模块。遇到新题时，大脑会自动匹配模式库里的条目。</p>
+<h3 id="sec-211" class="hd hd-2">32.4 如何阅读别人的 writeup</h3>
+<p>大部分人读 writeup 的方式是"看答案，觉得有道理，记住结论"——这几乎没有训练价值。正确读法：</p>
+<ol>
+<li><strong>先自己做</strong>，卡住了再看（哪怕只看第一段提示）。</li>
+<li><strong>遮住结论</strong>，读到某个步骤时停下来，问自己"接下来我会怎么做"。</li>
+<li><strong>对比思路</strong>：作者的切入点和你的有什么不同？为什么他选那条路？</li>
+<li><strong>关注"为什么"</strong>：作者有没有解释为什么在那里下断点、为什么选那个算法？如果没有，自己补上。</li>
+<li><strong>提炼模式</strong>：这道题的核心模式能用在哪些别的题上？记入模式库。</li>
+</ol>
+<p><strong>关键心态</strong>：读 writeup 不是"学习答案"，而是"观察另一个大脑如何思考"。</p>
+<h3 id="sec-212" class="hd hd-2">32.5 如何给自己出题</h3>
+<p>出题是比做题更高层次的学习。当你能出题时，说明你真正理解了考点。</p>
+<p>给自己出题的方法：</p>
+<ol>
+<li><strong>改造已有题</strong>：把一道 XOR 题改成 RC4，你需要理解两种算法的差异才能改对。</li>
+<li><strong>加一层变换</strong>：在现有题上多加一步（比如 XOR 后再加下标），然后做一遍，体会"逆序还原"的变化。</li>
+<li><strong>写最小 CrackMe</strong>：自己写一个 10 行的校验程序，编译后自己逆。你会立刻明白编译器把你的代码变成了什么。</li>
+<li><strong>故意设置陷阱</strong>：加个诱饵比较、加段花指令，然后看看自己能不能识别出来。</li>
+</ol>
+<p><strong>为什么有效</strong>：出题迫使你从"解题者视角"切换到"设计者视角"。理解出题人的思路，是破解题目思维的最快方法。</p>
+<h3 id="sec-213" class="hd hd-2">32.6 比赛/考场中的思维管理</h3>
+<p>CTF 比赛有时间压力，思维管理变得更重要：</p>
+<ol>
+<li><strong>先扫后解</strong>：开赛先用 10 分钟浏览所有题，按分值和难度分配时间，不要一上来就死磕第一题。</li>
+<li><strong>设置止损点</strong>：每道题最多投入 N 分钟（比如 30 分钟），无进展就换题。很多题在换个脑子后反而瞬间想通。</li>
+<li><strong>记录进度</strong>：每道题在纸/文件上记下"已确认的事实"和"下一步计划"，换题回来时能立刻续上。</li>
+<li><strong>团队协作</strong>：组队时，把题目按总分摊，卡住时在群里描述"我发现了什么、卡在哪里"，别人可能一句话就点醒你。</li>
+<li><strong>状态管理</strong>：疲劳时思维质量骤降。保证睡眠、适时休息，比多熬两小时有效。</li>
+</ol>
+<h3 id="sec-214" class="hd hd-2">32.7 思维的成长路径</h3>
+<p>把你的能力发展分成几个阶段，每个阶段的思维重点不同：</p>
+<div class='table-wrap'><table><thead><tr><th>阶段</th><th>特征</th><th>思维重点</th></tr></thead><tbody>
+<tr><td>新手</td><td>工具不熟、看不懂汇编</td><td>熟记IDA快捷键、能读懂简单汇编</td></tr>
+<tr><td>进阶</td><td>会做题但靠碰运气</td><td>建立思维清单、刻意练习算法识别</td></tr>
+<tr><td>熟练</td><td>稳定解出中等题</td><td>元认知：知道自己不知道什么、精准切换工具</td></tr>
+<tr><td>高手</td><td>快速看穿新题型</td><td>模式库丰富、能类比迁移、能出题</td></tr>
+</tbody></table></div>
+<p><strong>从进阶到熟练是最大的坎</strong>，跨过它的关键不是做更多题，而是<strong>开始反思自己的思维过程</strong>——也就是元认知。</p>
+<h3 id="sec-215" class="hd hd-2">32.8 动手做</h3>
+<ol>
+<li>建立你的错题本和模式库（用任何笔记工具），把过去做过的 5 道题整理进去。</li>
+<li>用"刻意练习版"流程重做一道题：记录完整思维 → 对照 writeup → 写下思路差异 → 更新模式库。</li>
+</ol>
+<h2 id="sec-216" class="hd hd-1">第 33 讲 思维工具箱总表：一页纸速查</h2>
+<h3 id="sec-217" class="hd hd-2">33.1 如何使用这张总表</h3>
+<p>前面九讲（第 25-32 讲）给出了大量思维方法。本讲把它们浓缩成一张可打印的总表。用法：</p>
+<ul>
+<li><strong>做题前</strong>扫一遍"第一小时流程"，确认方向；</li>
+<li><strong>卡住时</strong>查"卡点分类表"和"切换清单"；</li>
+<li><strong>看不懂代码时</strong>查"六种代码解读工具"；</li>
+<li><strong>验证失败时</strong>查"逐项排查清单"；</li>
+<li><strong>做完题后</strong>查"复盘五问"。</li>
+</ul>
+<h3 id="sec-218" class="hd hd-2">33.2 全流程思维总表</h3>
+<div class='table-wrap'><table><thead><tr><th>阶段</th><th>核心问题</th><th>动作</th><th>对应讲次</th></tr></thead><tbody>
+<tr><td>侦察</td><td>这是什么？</td><td>file/查壳/strings/导入表/运行观察 → 判断题型 → 选工具</td><td>第 26 讲</td></tr>
+<tr><td>定位</td><td>分叉点在哪？</td><td>找成功/失败判断，缩小到单个比较点</td><td>第 25、27 讲</td></tr>
+<tr><td>解读</td><td>代码在做什么？</td><td>切片/追踪/反转/类比/边界/实验，六选一或组合</td><td>第 30 讲</td></tr>
+<tr><td>还原</td><td>怎么逆推输入？</td><td>从比较点倒推，严格逆序，注意字节范围</td><td>第 27 讲</td></tr>
+<tr><td>验证</td><td>结果对吗？</td><td>代回原程序，失败则逐项排查</td><td>第 29 讲</td></tr>
+<tr><td>复盘</td><td>学到了什么？</td><td>考点/切入/卡点/更优解/记入笔记</td><td>第 29、32 讲</td></tr>
+</tbody></table></div>
+<h3 id="sec-219" class="hd hd-2">33.3 六种代码解读工具速查</h3>
+<div class='table-wrap'><table><thead><tr><th>工具</th><th>何时用</th><th>操作</th></tr></thead><tbody>
+<tr><td>切片法</td><td>函数太长</td><td>切成输入段/变换段/输出段，只读变换段</td></tr>
+<tr><td>数据追踪法</td><td>变量太多</td><td>盯住一个关键变量，列出它所有修改点</td></tr>
+<tr><td>反转法</td><td>结果形式明确</td><td>从输出/常量倒推输入</td></tr>
+<tr><td>类比法</td><td>有熟悉的特征</td><td>对照算法指纹表，找相似模式</td></tr>
+<tr><td>边界法</td><td>不想读代码</td><td>用空/长/极端输入测试行为</td></tr>
+<tr><td>实验法</td><td>有假设待验证</td><td>构造能区分假设真伪的输入</td></tr>
+</tbody></table></div>
+<h3 id="sec-220" class="hd hd-2">33.4 卡点分类与应对速查</h3>
+<div class='table-wrap'><table><thead><tr><th>卡点</th><th>应对</th></tr></thead><tbody>
+<tr><td>找不到入口</td><td>回第 26 讲侦察流程，查字符串和导入表</td></tr>
+<tr><td>看不懂代码</td><td>用 33.3 的六种工具，先切片再追踪</td></tr>
+<tr><td>算法认不出</td><td>查指纹表 → 看输入输出 → Z3 → 搜魔数</td></tr>
+<tr><td>验证失败</td><td>查顺序/回绕/字节序/下标/符号/常量/漏步</td></tr>
+<tr><td>动态断不下</td><td>检查输入来源、反调试、执行路径</td></tr>
+<tr><td>卡住 20 分钟</td><td>强制切换：换工具/视角/环境/任务</td></tr>
+</tbody></table></div>
+<h3 id="sec-221" class="hd hd-2">33.5 各类题型思维模板速查</h3>
+<div class='table-wrap'><table><thead><tr><th>题型</th><th>一句话思维</th></tr></thead><tbody>
+<tr><td>校验类</td><td>找比较点 → 从目标倒推 → 逆序还原</td></tr>
+<tr><td>算法类</td><td>查魔数认算法 → 核对实现细节 → 写逆过程</td></tr>
+<tr><td>加壳类</td><td>先脱壳，壳只是包装，目标是里面的逻辑</td></tr>
+<tr><td>混淆类</td><td>动态执行轨迹胜过静态代码全貌，只分析走过的代码</td></tr>
+<tr><td>VM 类</td><td>当成新语言：建 handler 字典 → 反汇编字节码</td></tr>
+<tr><td>多语言类</td><td>用对工具（dnSpy/Jadx/解包），成本骤降</td></tr>
+<tr><td>无提示类</td><td>边界法测行为，从输入输出规律反推</td></tr>
+</tbody></table></div>
+<h3 id="sec-222" class="hd hd-2">33.6 七个认知陷阱速查</h3>
+<ol>
+<li>过度相信 F5 伪代码</li>
+<li>看到比较就以为是终点</li>
+<li>忽略未执行的代码</li>
+<li>把"没找到"当"不存在"</li>
+<li>确认偏误（认定后不找反证）</li>
+<li>忘记环境差异（位数、依赖、目录）</li>
+<li>忘记题目分值（不一定需要 100% 还原）</li>
+</ol>
+<h3 id="sec-223" class="hd hd-2">33.7 复盘五问</h3>
+<ol>
+<li>核心考点是什么？</li>
+<li>我从哪个线索切入？还能用在哪？</li>
+<li>卡在哪？重来能更快吗？</li>
+<li>有没有更优解？</li>
+<li>值得记入模式库吗？</li>
+</ol>
+<h3 id="sec-224" class="hd hd-2">33.8 结语：思维是可以训练的</h3>
+<p>回到这份讲义的起点：逆向是手艺活，但手艺的核心是思维。工具会更新，算法会变化，但"假设—验证"的循环、"从终点倒推"的策略、"静态定方向动态定真相"的判断、以及"20 分钟切换"的纪律，是长期有效的。</p>
+<p>把它们写进你的清单，刻意练习，直到它们变成本能。到那时，你会发现自己不再"希望看着看着就懂了"，而是清楚地知道下一步该做什么、为什么这么做。这就是从新手到高手的路。</p>
+<h3 id="sec-225" class="hd hd-2">33.9 动手做</h3>
+<ol>
+<li>把 33.2 到 33.7 的表格打印出来，贴在书桌前，下次做题时刻意对照使用。</li>
+<li>一周后回顾：哪些条目最常帮你脱困？哪些你总是忘记用？针对性地强化后者。</li>
+</ol>
+<h2 id="sec-226" class="hd hd-1">附录 A 常用工具速查</h2>
+<div class='table-wrap'><table><thead><tr><th>用途</th><th>工具</th></tr></thead><tbody>
+<tr><td>文件识别 / 查壳</td><td>Detect It Easy, PEiD, <code>file</code></td></tr>
+<tr><td>静态反汇编</td><td>IDA Pro, Ghidra, radare2, objdump</td></tr>
+<tr><td>动态调试</td><td>x64dbg, OllyDbg, GDB(+pwndbg), WinDbg</td></tr>
+<tr><td>十六进制编辑</td><td>010 Editor, HxD</td></tr>
+<tr><td>资源查看</td><td>Resource Hacker</td></tr>
+<tr><td>脱壳 / IAT 修复</td><td>Scylla, OllyDump, UPX</td></tr>
+<tr><td>.NET 逆向</td><td>dnSpy, ILSpy</td></tr>
+<tr><td>Java 逆向</td><td>JD-GUI, Jadx, CFR, javap</td></tr>
+<tr><td>Python 逆向</td><td>pyinstxtractor, uncompyle6, decompyle3</td></tr>
+<tr><td>脚本辅助</td><td>Python + capstone/unicorn/z3/angr</td></tr>
+</tbody></table></div>
+<h2 id="sec-227" class="hd hd-1">附录 B 快捷键速查</h2>
+<h3 id="sec-228" class="hd hd-2">IDA</h3>
+<div class='table-wrap'><table><thead><tr><th>快捷键</th><th>功能</th></tr></thead><tbody>
+<tr><td>F5</td><td>反编译</td></tr>
+<tr><td>空格</td><td>图形/文本视图</td></tr>
+<tr><td>X</td><td>交叉引用</td></tr>
+<tr><td>N</td><td>重命名</td></tr>
+<tr><td>Y</td><td>设置类型</td></tr>
+<tr><td>G</td><td>跳转地址</td></tr>
+<tr><td>Shift+F12</td><td>字符串</td></tr>
+<tr><td>Shift+F3</td><td>函数列表</td></tr>
+<tr><td>Alt+T</td><td>搜索文本</td></tr>
+</tbody></table></div>
+<h3 id="sec-229" class="hd hd-2">x64dbg</h3>
+<div class='table-wrap'><table><thead><tr><th>快捷键</th><th>功能</th></tr></thead><tbody>
+<tr><td>F2</td><td>下/取消断点</td></tr>
+<tr><td>F7</td><td>单步进入</td></tr>
+<tr><td>F8</td><td>单步跳过</td></tr>
+<tr><td>F9</td><td>运行</td></tr>
+<tr><td>Ctrl+G</td><td>跳转到地址</td></tr>
+<tr><td>Ctrl+F</td><td>搜索命令/字符串</td></tr>
+</tbody></table></div>
+<h2 id="sec-230" class="hd hd-1">附录 C 常见算法指纹速查</h2>
+<div class='table-wrap'><table><thead><tr><th>算法</th><th>指纹</th></tr></thead><tbody>
+<tr><td>XOR</td><td>循环中的 <code>xor [mem], imm</code></td></tr>
+<tr><td>Base64</td><td>字母表字符串、右移两位与左移四位、按位与掩码 0x3f</td></tr>
+<tr><td>RC4</td><td>内置 256 字节数组、按位与掩码、交换操作</td></tr>
+<tr><td>TEA/XTEA</td><td><code>0x9E3779B9</code></td></tr>
+<tr><td>MD5</td><td><code>0x67452301</code>, <code>0xefcdab89</code>, T 表</td></tr>
+<tr><td>SHA-1</td><td>五个初始魔数、80 轮</td></tr>
+<tr><td>AES</td><td>S-box 表、<code>rcon</code>、乘 2 的 GF 运算</td></tr>
+<tr><td>CRC32</td><td><code>0xEDB88320</code>、256 项表</td></tr>
+</tbody></table></div>
+<h2 id="sec-231" class="hd hd-1">附录 D 汇编指令速查</h2>
+<div class='table-wrap'><table><thead><tr><th>指令</th><th>含义</th></tr></thead><tbody>
+<tr><td><code>mov a, b</code></td><td>把 b 送到 a</td></tr>
+<tr><td><code>lea a, [b]</code></td><td>取有效地址</td></tr>
+<tr><td><code>push/pop</code></td><td>压栈 / 出栈</td></tr>
+<tr><td><code>add/sub</code></td><td>加 / 减</td></tr>
+<tr><td><code>xor/and/or/not</code></td><td>位运算</td></tr>
+<tr><td><code>shl/shr/sar</code></td><td>逻辑左移/右移/算术右移</td></tr>
+<tr><td><code>rol/ror</code></td><td>循环左移/右移</td></tr>
+<tr><td><code>cmp/test</code></td><td>比较（只改标志位）</td></tr>
+<tr><td><code>jmp/je/jne/jg/jl/ja/jb</code></td><td>无条件/条件跳转</td></tr>
+<tr><td><code>call/ret</code></td><td>调用 / 返回</td></tr>
+<tr><td><code>nop</code></td><td>空操作（<code>0x90</code>）</td></tr>
+</tbody></table></div>
+<h2 id="sec-232" class="hd hd-1">附录 E 术语表</h2>
+<div class='table-wrap'><table><thead><tr><th>术语</th><th>含义</th></tr></thead><tbody>
+<tr><td>OEP</td><td>Original Entry Point，程序原始入口点</td></tr>
+<tr><td>IAT</td><td>Import Address Table，导入地址表</td></tr>
+<tr><td>PEB</td><td>Process Environment Block，进程环境块</td></tr>
+<tr><td>Opcode</td><td>操作码，指令的操作类型编码</td></tr>
+<tr><td>Handler</td><td>VM 中处理某个 opcode 的代码段</td></tr>
+<tr><td>花指令</td><td>干扰反汇编的无意义指令</td></tr>
+<tr><td>脱壳</td><td>去除程序的保护外壳，还原原始代码</td></tr>
+<tr><td>F5</td><td>IDA 的反编译功能，把汇编转成伪代码</td></tr>
+<tr><td>CrackMe</td><td>专门用于练习逆向的小程序</td></tr>
+<tr><td>Keygen</td><td>注册机，根据算法生成正确序列号的程序</td></tr>
+</tbody></table></div>
+    </article>
+  </main>
+</div>
+<button id="toTop" aria-label="回到顶部">&#8593;</button>
+<script>
+const TOC_DATA = [{"text": "第 0 讲 这份讲义怎么用", "id": "sec-1", "children": []}, {"text": "第 1 讲 逆向工程与 CTF Reverse 概览", "id": "sec-2", "children": [{"text": "1.1 什么是逆向工程", "id": "sec-3"}, {"text": "1.2 CTF 中的 Reverse 题型版图", "id": "sec-4"}, {"text": "1.3 逆向与其他方向的关系", "id": "sec-5"}, {"text": "1.4 动手做", "id": "sec-6"}]}, {"text": "第 2 讲 数据与进制基础", "id": "sec-7", "children": [{"text": "2.1 为什么逆向离不开十六进制", "id": "sec-8"}, {"text": "2.2 位、字节、字与双字", "id": "sec-9"}, {"text": "2.3 字节序：大端与小端", "id": "sec-10"}, {"text": "2.4 ASCII、UTF-8 与宽字符", "id": "sec-11"}, {"text": "2.5 有符号数与补码", "id": "sec-12"}, {"text": "2.6 动手做", "id": "sec-13"}]}, {"text": "第 3 讲 可执行文件结构：PE、ELF 与 Mach-O", "id": "sec-14", "children": [{"text": "3.1 程序是如何从源码变成可执行文件的", "id": "sec-15"}, {"text": "3.2 PE 文件结构", "id": "sec-16"}, {"text": "3.3 ELF 文件结构", "id": "sec-17"}, {"text": "3.4 节与段、导入表、导出表、资源", "id": "sec-18"}, {"text": "3.5 如何快速判断文件类型与架构", "id": "sec-19"}, {"text": "3.6 动手做", "id": "sec-20"}]}, {"text": "第 4 讲 x86/x64 汇编基础", "id": "sec-21", "children": [{"text": "4.1 为什么要学汇编", "id": "sec-22"}, {"text": "4.2 寄存器", "id": "sec-23"}, {"text": "4.3 寻址方式", "id": "sec-24"}, {"text": "4.4 常用指令", "id": "sec-25"}, {"text": "4.5 栈操作与函数调用", "id": "sec-26"}, {"text": "4.6 动手做", "id": "sec-27"}]}, {"text": "第 5 讲 从 C 代码到汇编：控制流与栈帧", "id": "sec-28", "children": [{"text": "5.1 顺序、分支、循环在汇编里的样子", "id": "sec-29"}, {"text": "5.2 栈帧与调用约定", "id": "sec-30"}, {"text": "5.3 参数传递与返回值", "id": "sec-31"}, {"text": "5.4 识别 switch、if-else、for", "id": "sec-32"}, {"text": "5.5 动手做", "id": "sec-33"}]}, {"text": "第 6 讲 逆向工具链总览", "id": "sec-34", "children": [{"text": "6.1 静态分析与动态分析", "id": "sec-35"}, {"text": "6.2 反汇编器：IDA / Ghidra / radare2 / objdump", "id": "sec-36"}, {"text": "6.3 调试器：x64dbg / GDB / WinDbg", "id": "sec-37"}, {"text": "6.4 辅助工具：DIE、PEiD、Resource Hacker、API Monitor", "id": "sec-38"}, {"text": "6.5 环境搭建建议", "id": "sec-39"}, {"text": "6.6 动手做", "id": "sec-40"}]}, {"text": "第 7 讲 IDA Pro 从入门到熟练", "id": "sec-41", "children": [{"text": "7.1 初次打开一个程序", "id": "sec-42"}, {"text": "7.2 常用视图与窗口", "id": "sec-43"}, {"text": "7.3 关键快捷键", "id": "sec-44"}, {"text": "7.4 F5 伪代码与交叉引用", "id": "sec-45"}, {"text": "7.5 重命名、注释与结构体", "id": "sec-46"}, {"text": "7.6 动手做", "id": "sec-47"}]}, {"text": "第 8 讲 Ghidra 与其他反汇编器", "id": "sec-48", "children": [{"text": "8.1 Ghidra 项目与导入", "id": "sec-49"}, {"text": "8.2 CodeBrowser 与反编译窗口", "id": "sec-50"}, {"text": "8.3 脚本与批量分析", "id": "sec-51"}, {"text": "8.4 radare2 / rizin 速览", "id": "sec-52"}, {"text": "8.5 动手做", "id": "sec-53"}]}, {"text": "第 9 讲 动态调试基础", "id": "sec-54", "children": [{"text": "9.1 为什么要动态调试", "id": "sec-55"}, {"text": "9.2 断点类型", "id": "sec-56"}, {"text": "9.3 单步与运行控制", "id": "sec-57"}, {"text": "9.4 观察与修改寄存器/内存", "id": "sec-58"}, {"text": "9.5 x64dbg 实战", "id": "sec-59"}, {"text": "9.6 GDB 实战", "id": "sec-60"}, {"text": "9.7 动手做", "id": "sec-61"}]}, {"text": "第 10 讲 静态分析解题套路", "id": "sec-62", "children": [{"text": "10.1 从字符串入手", "id": "sec-63"}, {"text": "10.2 定位 main 与关键函数", "id": "sec-64"}, {"text": "10.3 交叉引用与调用图", "id": "sec-65"}, {"text": "10.4 恢复控制流与数据结构", "id": "sec-66"}, {"text": "10.5 动手做", "id": "sec-67"}]}, {"text": "第 11 讲 常见编码与算法识别（一）", "id": "sec-68", "children": [{"text": "11.1 XOR 加密", "id": "sec-69"}, {"text": "11.2 Base64 与自定义 base", "id": "sec-70"}, {"text": "11.3 RC4", "id": "sec-71"}, {"text": "11.4 哈希算法特征（MD5/SHA）", "id": "sec-72"}, {"text": "11.5 动手做", "id": "sec-73"}]}, {"text": "第 12 讲 常见编码与算法识别（二）", "id": "sec-74", "children": [{"text": "12.1 TEA / XTEA / XXTEA", "id": "sec-75"}, {"text": "12.2 AES 的特征", "id": "sec-76"}, {"text": "12.3 CRC 与校验和", "id": "sec-77"}, {"text": "12.4 S-box 与查表", "id": "sec-78"}, {"text": "12.5 动手做", "id": "sec-79"}]}, {"text": "第 13 讲 做题实战：CrackMe 与 flag 校验", "id": "sec-80", "children": [{"text": "13.1 最简单的 flag 比较", "id": "sec-81"}, {"text": "13.2 逐字符校验", "id": "sec-82"}, {"text": "13.3 用户名的 keygen", "id": "sec-83"}, {"text": "13.4 数组变换与查表", "id": "sec-84"}, {"text": "13.5 动手做", "id": "sec-85"}]}, {"text": "第 14 讲 花指令与代码混淆", "id": "sec-86", "children": [{"text": "14.1 什么是花指令", "id": "sec-87"}, {"text": "14.2 常见花指令模式", "id": "sec-88"}, {"text": "14.3 控制流平坦化", "id": "sec-89"}, {"text": "14.4 虚假条件与恒真跳转", "id": "sec-90"}, {"text": "14.5 去混淆思路", "id": "sec-91"}, {"text": "14.6 动手做", "id": "sec-92"}]}, {"text": "第 15 讲 反调试与反虚拟机", "id": "sec-93", "children": [{"text": "15.1 为什么要反调试", "id": "sec-94"}, {"text": "15.2 IsDebuggerPresent 与 PEB", "id": "sec-95"}, {"text": "15.3 时间差与 INT3/Self", "id": "sec-96"}, {"text": "15.4 反虚拟机常见手法", "id": "sec-97"}, {"text": "15.5 绕过思路", "id": "sec-98"}, {"text": "15.6 动手做", "id": "sec-99"}]}, {"text": "第 16 讲 加壳与脱壳", "id": "sec-100", "children": [{"text": "16.1 壳的原理", "id": "sec-101"}, {"text": "16.2 识别壳", "id": "sec-102"}, {"text": "16.3 UPX 脱壳", "id": "sec-103"}, {"text": "16.4 手动脱壳：找 OEP", "id": "sec-104"}, {"text": "16.5 IAT 修复与 dump", "id": "sec-105"}, {"text": "16.6 动手做", "id": "sec-106"}]}, {"text": "第 17 讲 虚拟机保护（VM）逆向入门", "id": "sec-107", "children": [{"text": "17.1 VM 保护是什么", "id": "sec-108"}, {"text": "17.2 VM 的基本结构", "id": "sec-109"}, {"text": "17.3 识别 VM 指令集", "id": "sec-110"}, {"text": "17.4 还原字节码", "id": "sec-111"}, {"text": "17.5 动手做", "id": "sec-112"}]}, {"text": "第 18 讲 托管代码与脚本语言逆向", "id": "sec-113", "children": [{"text": "18.1 .NET 程序与 dnSpy", "id": "sec-114"}, {"text": "18.2 Java 字节码与 JD-GUI", "id": "sec-115"}, {"text": "18.3 Python：pyc、PyInstaller", "id": "sec-116"}, {"text": "18.4 JS / Lua", "id": "sec-117"}, {"text": "18.5 动手做", "id": "sec-118"}]}, {"text": "第 19 讲 符号执行与程序分析入门", "id": "sec-119", "children": [{"text": "19.1 符号执行是什么", "id": "sec-120"}, {"text": "19.2 angr 基础", "id": "sec-121"}, {"text": "19.3 Z3 约束求解", "id": "sec-122"}, {"text": "19.4 适用场景与局限", "id": "sec-123"}, {"text": "19.5 动手做", "id": "sec-124"}]}, {"text": "第 20 讲 程序补丁与 Keygen", "id": "sec-125", "children": [{"text": "20.1 为什么要打补丁", "id": "sec-126"}, {"text": "20.2 静态补丁", "id": "sec-127"}, {"text": "20.3 动态补丁", "id": "sec-128"}, {"text": "20.4 写注册机", "id": "sec-129"}, {"text": "20.5 动手做", "id": "sec-130"}]}, {"text": "第 21 讲 解题通用流程与心态", "id": "sec-131", "children": [{"text": "21.1 标准解题流程", "id": "sec-132"}, {"text": "21.2 卡住时的思路", "id": "sec-133"}, {"text": "21.3 给新手的三条建议", "id": "sec-134"}]}, {"text": "第 22 讲 学习路线与资源", "id": "sec-135", "children": [{"text": "22.1 分阶段路线", "id": "sec-136"}, {"text": "22.2 推荐资源", "id": "sec-137"}, {"text": "22.3 常用 Python 库清单", "id": "sec-138"}]}, {"text": "第 23 讲 综合实战一：一个 CrackMe 完整复盘", "id": "sec-139", "children": [{"text": "23.1 题目给的信息", "id": "sec-140"}, {"text": "23.2 信息收集", "id": "sec-141"}, {"text": "23.3 定位关键代码", "id": "sec-142"}, {"text": "23.4 dump target 并还原", "id": "sec-143"}, {"text": "23.5 验证", "id": "sec-144"}, {"text": "23.6 这道题教会我们的", "id": "sec-145"}]}, {"text": "第 24 讲 综合实战二：混淆校验函数复盘", "id": "sec-146", "children": [{"text": "24.1 题目特征", "id": "sec-147"}, {"text": "24.2 识别分发器", "id": "sec-148"}, {"text": "24.3 重建执行顺序", "id": "sec-149"}, {"text": "24.4 识别算法并求解", "id": "sec-150"}, {"text": "24.5 收获", "id": "sec-151"}]}, {"text": "第 25 讲 解题思维总纲：从\"看见\"到\"看穿\"", "id": "sec-152", "children": [{"text": "25.1 逆向解题的本质是一场\"假设—验证\"循环", "id": "sec-153"}, {"text": "25.2 三个层次的思维：现象层、结构层、意图层", "id": "sec-154"}, {"text": "25.3 自顶向下与自底向上：两种逼近路径", "id": "sec-155"}, {"text": "25.4 缩小问题规模：把\"整道题\"变成\"一个比较点\"", "id": "sec-156"}, {"text": "25.5 三个永远值得先问的问题", "id": "sec-157"}, {"text": "25.6 动手做", "id": "sec-158"}]}, {"text": "第 26 讲 面对陌生题目的第一小时：信息收集与方向判断", "id": "sec-159", "children": [{"text": "26.1 第一小时的黄金流程", "id": "sec-160"}, {"text": "26.2 用\"输入—输出—状态\"模型描述程序", "id": "sec-161"}, {"text": "26.3 如何判断题型（决定后续策略）", "id": "sec-162"}, {"text": "26.4 信息收集阶段的常见错误", "id": "sec-163"}, {"text": "26.5 建立\"线索板\"", "id": "sec-164"}, {"text": "26.6 动手做", "id": "sec-165"}]}, {"text": "第 27 讲 分题型思维模板（上）：校验类与算法类", "id": "sec-166", "children": [{"text": "27.1 模板思维：把解题变成填空", "id": "sec-167"}, {"text": "27.2 校验类题目的思维模板", "id": "sec-168"}, {"text": "27.3 算法类题目的思维模板", "id": "sec-169"}, {"text": "27.4 当算法识别不出来时怎么办", "id": "sec-170"}, {"text": "27.5 一个完整的思维示范", "id": "sec-171"}, {"text": "27.6 动手做", "id": "sec-172"}]}, {"text": "第 28 讲 分题型思维模板（下）：加壳、混淆、VM 与多语言", "id": "sec-173", "children": [{"text": "28.1 加壳类题目的思维模板", "id": "sec-174"}, {"text": "28.2 花指令与混淆类题目的思维模板", "id": "sec-175"}, {"text": "28.3 VM 类题目的思维模板", "id": "sec-176"}, {"text": "28.4 多语言/跨平台题目的思维模板", "id": "sec-177"}, {"text": "28.5 跨平台题目的通用思维", "id": "sec-178"}, {"text": "28.6 动手做", "id": "sec-179"}]}, {"text": "第 29 讲 卡壳排查、认知陷阱与复盘方法", "id": "sec-180", "children": [{"text": "29.1 卡壳时先分类，再行动", "id": "sec-181"}, {"text": "29.2 逆向中的七个认知陷阱", "id": "sec-182"}, {"text": "29.3 验证失败时的系统排查清单", "id": "sec-183"}, {"text": "29.4 换工具、换视角、换环境", "id": "sec-184"}, {"text": "29.5 复盘方法：把一道题变成永久能力", "id": "sec-185"}, {"text": "29.6 建立自己的思维清单", "id": "sec-186"}, {"text": "29.7 动手做", "id": "sec-187"}]}, {"text": "第 30 讲 深度代码解读思维：读懂一段看不懂的代码", "id": "sec-188", "children": [{"text": "30.1 为什么\"看不懂代码\"是核心瓶颈", "id": "sec-189"}, {"text": "30.2 切片法：把任何函数切成三段", "id": "sec-190"}, {"text": "30.3 数据追踪法：盯住一个变量走到底", "id": "sec-191"}, {"text": "30.4 反转法：从结果倒推过程", "id": "sec-192"}, {"text": "30.5 类比法：这段代码\"像什么\"", "id": "sec-193"}, {"text": "30.6 边界法：用极端输入推断逻辑", "id": "sec-194"}, {"text": "30.7 实验法：主动构造输入验证理解", "id": "sec-195"}, {"text": "30.8 综合案例：一段复杂代码的完整解读", "id": "sec-196"}, {"text": "30.9 动手做", "id": "sec-197"}]}, {"text": "第 31 讲 实战思维案例库：五个题目的内心独白", "id": "sec-198", "children": [{"text": "31.1 为什么要看\"思维过程\"而不只是\"答案\"", "id": "sec-199"}, {"text": "31.2 案例一：不被表象吓住", "id": "sec-200"}, {"text": "31.3 案例二：静态与动态的配合", "id": "sec-201"}, {"text": "31.4 案例三：算法魔改的识别", "id": "sec-202"}, {"text": "31.5 案例四：混淆题的梳理", "id": "sec-203"}, {"text": "31.6 案例五：一次失败的复盘", "id": "sec-204"}, {"text": "31.7 从案例中提炼的通用思维模式", "id": "sec-205"}, {"text": "31.8 动手做", "id": "sec-206"}]}, {"text": "第 32 讲 元认知：训练你的解题大脑", "id": "sec-207", "children": [{"text": "32.1 什么是元认知，为什么它比知识更重要", "id": "sec-208"}, {"text": "32.2 刻意练习：不是做题数量，而是练习质量", "id": "sec-209"}, {"text": "32.3 建立错题本与模式库", "id": "sec-210"}, {"text": "32.4 如何阅读别人的 writeup", "id": "sec-211"}, {"text": "32.5 如何给自己出题", "id": "sec-212"}, {"text": "32.6 比赛/考场中的思维管理", "id": "sec-213"}, {"text": "32.7 思维的成长路径", "id": "sec-214"}, {"text": "32.8 动手做", "id": "sec-215"}]}, {"text": "第 33 讲 思维工具箱总表：一页纸速查", "id": "sec-216", "children": [{"text": "33.1 如何使用这张总表", "id": "sec-217"}, {"text": "33.2 全流程思维总表", "id": "sec-218"}, {"text": "33.3 六种代码解读工具速查", "id": "sec-219"}, {"text": "33.4 卡点分类与应对速查", "id": "sec-220"}, {"text": "33.5 各类题型思维模板速查", "id": "sec-221"}, {"text": "33.6 七个认知陷阱速查", "id": "sec-222"}, {"text": "33.7 复盘五问", "id": "sec-223"}, {"text": "33.8 结语：思维是可以训练的", "id": "sec-224"}, {"text": "33.9 动手做", "id": "sec-225"}]}, {"text": "附录 A 常用工具速查", "id": "sec-226", "children": []}, {"text": "附录 B 快捷键速查", "id": "sec-227", "children": [{"text": "IDA", "id": "sec-228"}, {"text": "x64dbg", "id": "sec-229"}]}, {"text": "附录 C 常见算法指纹速查", "id": "sec-230", "children": []}, {"text": "附录 D 汇编指令速查", "id": "sec-231", "children": []}, {"text": "附录 E 术语表", "id": "sec-232", "children": []}];
+
+/* ---------- build TOC ---------- */
+const toc = document.getElementById('toc');
+function buildToc(nodes){
+  toc.innerHTML='';
+  nodes.forEach((n,idx)=>{
+    const chap=document.createElement('div'); chap.className='chap';
+    const a=document.createElement('a'); a.href='#'+n.id; a.textContent=n.text; a.dataset.id=n.id;
+    chap.appendChild(a);
+    if(n.children && n.children.length){
+      const sub=document.createElement('div'); sub.className='sub';
+      n.children.forEach(c=>{
+        const sa=document.createElement('a'); sa.href='#'+c.id; sa.textContent=c.text; sa.dataset.id=c.id;
+        sub.appendChild(sa);
+      });
+      chap.appendChild(sub);
+    }
+    toc.appendChild(chap);
+  });
+}
+buildToc(TOC_DATA);
+
+/* ---------- scroll spy ---------- */
+const allLinks=[...toc.querySelectorAll('a')];
+const headings=[...document.querySelectorAll('.hd')];
+let ticking=false;
+function onScroll(){
+  const st=window.scrollY||document.documentElement.scrollTop;
+  const h=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('progress').style.width=(h>0?(st/h*100):0)+'%';
+  document.getElementById('toTop').classList.toggle('show',st>500);
+  // active heading = last one above threshold
+  let active=null;
+  for(const hd of headings){ if(hd.getBoundingClientRect().top<=140) active=hd.id; else break; }
+  if(active){
+    allLinks.forEach(a=>a.classList.toggle('active',a.dataset.id===active));
+    const act=allLinks.find(a=>a.dataset.id===active);
+    if(act){
+      const r=act.getBoundingClientRect(), tr=toc.getBoundingClientRect();
+      if(r.top<tr.top+8||r.bottom>tr.bottom-8) act.scrollIntoView({block:'nearest'});
+    }
+  }
+  ticking=false;
+}
+window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(onScroll);ticking=true;}},{passive:true});
+onScroll();
+
+/* smooth jump + close mobile drawer */
+toc.addEventListener('click',e=>{
+  const a=e.target.closest('a'); if(!a)return;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+});
+
+/* ---------- search / filter ---------- */
+document.getElementById('search').addEventListener('input',e=>{
+  const q=e.target.value.trim().toLowerCase();
+  allLinks.forEach(a=>{
+    a.classList.toggle('hide', q!=='' && !a.textContent.toLowerCase().includes(q));
+  });
+  [...toc.children].forEach(chap=>{
+    const any=[...chap.querySelectorAll('a')].some(a=>!a.classList.contains('hide'));
+    chap.style.display=any?'':'none';
+  });
+});
+
+/* ---------- expand / collapse ---------- */
+let expanded=false;
+document.getElementById('expandBtn').addEventListener('click',()=>{
+  expanded=!expanded;
+  toc.querySelectorAll('.sub').forEach(s=>s.style.display=expanded?'':'none');
+  document.getElementById('expandBtn').textContent=expanded?'收起目录':'展开目录';
+});
+toc.querySelectorAll('.sub').forEach(s=>s.style.display='none');
+
+/* ---------- theme ---------- */
+const themeBtn=document.getElementById('themeBtn');
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  themeBtn.textContent=t==='dark'?'🌙 暗色':'☀️ 亮色';
+  try{localStorage.setItem('ctf-reverse-theme',t);}catch(e){}
+}
+let saved=null; try{saved=localStorage.getItem('ctf-reverse-theme');}catch(e){}
+setTheme(saved==='light'?'light':'dark');
+themeBtn.addEventListener('click',()=>setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'));
+
+/* ---------- mobile drawer ---------- */
+const sidebar=document.getElementById('sidebar'),overlay=document.getElementById('overlay');
+document.getElementById('menuBtn').addEventListener('click',()=>{
+  sidebar.classList.add('open'); overlay.classList.add('show');
+});
+overlay.addEventListener('click',()=>{sidebar.classList.remove('open');overlay.classList.remove('show');});
+
+/* ---------- copy buttons ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.copy-btn'); if(!b)return;
+  const code=b.closest('.code-wrap').querySelector('.code-body').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    b.textContent='已复制'; b.classList.add('done');
+    setTimeout(()=>{b.textContent='复制';b.classList.remove('done');},1600);
+  });
+});
+
+/* ---------- back to top ---------- */
+document.getElementById('toTop').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+</script>
+</body>
+</html>

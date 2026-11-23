@@ -1,0 +1,22 @@
+# 依赖与构建
+node_modules/
+dist/
+build/
+
+# 环境与密钥（勿提交任何凭据）
+.env
+.env.*
+*.key
+*.pem
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# WorkBuddy 内部标记与应用记录
+*.genie
+.workbuddy/
+applications.yaml
