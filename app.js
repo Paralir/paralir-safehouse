@@ -242,10 +242,6 @@ function prepareLevelQuestions(monsters,boss,isStory){
     boss:shuffleQuestionSet(hard.map(q=>phaseQuestion(q,"boss",isStory)))
   };
 }
-function shortZh(z,n){
-  const t=String(z||"").replace(/^[a-z]+\.\s*/i,"").replace(/[\[（(].*?[\]）)]/g,"").replace(/\s+/g," ").trim();
-  return t.length>n?t.slice(0,n)+"…":t;
-}
 /* 统一释义呈现：预习清单 / 小怪选项 / Boss 题干 全部使用本函数，保证逐字一致。
    保留词性前缀(v./n./adj.)，仅去掉括号补充说明、压缩空白与标点两侧空格，统一截断长度。 */
 function canonicalZh(z,n){
@@ -265,11 +261,6 @@ function expectedPos(theme){
   if(/形容词|描述/.test(t))return "adj";
   if(/副词/.test(t))return "adv";
   return null;
-}
-function leadingPos(meaning){
-  const m=String(meaning||"").trim();
-  const hit=m.match(/^([a-z]+)\./i);
-  return hit?hit[1].toLowerCase():"";
 }
 function hasOnlyPos(meaning,posRe){
   const m=String(meaning||"");

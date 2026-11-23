@@ -277,7 +277,7 @@ mark{background:rgba(251,191,36,.25);color:#fde68a;border-radius:3px;padding:0 2
 .lb-pts{color:#fbbf24;font-weight:700;font-size:12px;flex-shrink:0}
 .friend-item{display:flex;align-items:center;gap:8px;padding:9px 8px;border-radius:8px;font-size:13px}
 .friend-item:hover{background:var(--panel2)}.fi-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fi-chat,.fi-del,.fi-acc{border:0;background:var(--panel2);color:var(--accent);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px}
+.fi-chat,.fi-del{border:0;background:var(--panel2);color:var(--accent);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px}
 .fi-del{color:var(--red)}
 .invite-item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
 .ii-type{font-size:13px;font-weight:700;color:var(--accent)}.ii-from{font-size:12px;color:var(--muted);margin:5px 0}
@@ -412,7 +412,7 @@ mark{background:rgba(251,191,36,.25);color:#fde68a;border-radius:3px;padding:0 2
 .gs-dots i{width:8px;height:8px;border-radius:50%;background:#2a3a4a;transition:.3s}
 .gs-dots i.on{background:var(--teal);box-shadow:0 0 12px var(--teal)}
 .gs-dots i.past{background:#3d6b66}
-.gate-next,.gate-next{display:inline-block;background:transparent;border:1px solid rgba(45,212,191,.5);color:var(--teal);
+.gate-next{display:inline-block;background:transparent;border:1px solid rgba(45,212,191,.5);color:var(--teal);
   padding:10px 30px;border-radius:9px;cursor:pointer;font-size:14px;letter-spacing:1px;transition:.2s}
 .gate-next:hover{background:rgba(45,212,191,.12)}
 

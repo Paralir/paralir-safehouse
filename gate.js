@@ -110,8 +110,6 @@
     A.stopDrone();
     A.SFX.cat();
     const stage = el("gateStage");
-    const nextBtn = el("gateNext");
-    if (nextBtn) nextBtn.style.display = "none";
     stage.innerHTML = `
       <div class="gate-welcome">
         <div class="gw-glow"></div>
@@ -154,7 +152,11 @@
     render();
     sayOld(SCENES[0].text);
     const skip = el("gateSkip");
-    if (skip) skip.style.display = "";
+    if (skip) {
+      skip.style.display = "";
+      // 跳过开场：直接结束门禁（此前仅显示按钮却未绑定点击，点了无反应）
+      skip.onclick = finish;
+    }
   }
 
   window.SafehouseGate = {
