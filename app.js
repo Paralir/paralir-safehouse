@@ -12,7 +12,7 @@ const cloud = WorkBuddyCloud.createWorkBuddyCloud({
 /* ---------- Global state ---------- */
 const S = {
   user: null, page: "home",
-  lexQ: "", lexCat: "", lexLimit:120, lexFavOnly:false, favs: new Set(JSON.parse(localStorage.getItem("ps_favs")||"[]")),
+  lexQ: "", lexCat: "", lexLimit:120, lexFavOnly:false, favs: new Set(safeParseJSON(localStorage.getItem("ps_favs"),[])||[]),
   storyDir:null, storyBattle:null, storyProgress:{},
   gameDir:null, battle:null, progress:{}, studyTestedWords:new Set(),
   team:null, teamMax:4,
@@ -25,6 +25,10 @@ const GENDERS = ["男","女","非二元性别","性别酷儿","双性别","泛�
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/* 安全解析 localStorage JSON：数据被污染时返回兜底值，避免整个脚本崩溃 */
+function safeParseJSON(raw, fallback){
+  try{ const v=JSON.parse(raw); return v??fallback; }catch(e){ return fallback; }
+}
 
 /* 讲义中心白名单：只有 Paralir 能管理，不绑定管理员角色 */
 const OWNER_USERNAME = "Paralir";
@@ -383,7 +387,7 @@ const PARY_LINES = ["你也是来送分数的吗？","答错一次，我就吸�
 
 /* ---------- Auth ---------- */
 async function loadUser(){
-  const saved=JSON.parse(localStorage.getItem("ps_user")||"null");
+  const saved=safeParseJSON(localStorage.getItem("ps_user"),null);
   if(!saved) return null;
   const {data,error}=await cloud.database.from("app_users").select("*").eq("id",saved.id).maybeSingle();
   if(error||!data||data.status!=="active"){ localStorage.removeItem("ps_user"); return null; }
@@ -477,7 +481,7 @@ function renderUserBox(){
     if($("#btnLectureAccess")) $("#btnLectureAccess").onclick=showLectureAccessManager;
     $("#btnMusic").onclick=()=>{const on=AUDIO.toggleMusic();$("#btnMusic").textContent=on?"🎵":"🔇";toast(on?"背景音乐已开启":"背景音乐已关闭（按键音效不受影响）");};
     $("#btnSfx").onclick=()=>{const on=SFX.toggle();$("#btnSfx").textContent=on?"🔊":"🔇";toast(on?"按键音效已开启":"按键音效已关闭");};
-    $("#btnLogout").onclick=()=>{stopChat();AUDIO.stopAll();AUDIO.hideDock();setUser(null);S.storyProgress={};S.progress={};showLogin();toast("已退出登录");};
+    $("#btnLogout").onclick=()=>{battleEpoch++;stopLevelTimer();stopChat();AUDIO.stopAll();AUDIO.hideDock();setUser(null);S.storyBattle=null;S.battle=null;S.storyProgress={};S.progress={};showLogin();toast("已退出登录");};
   }
 }
 
@@ -1249,6 +1253,17 @@ const INTEL_NOTICE = `<div class="notice intel">
   情报网里混进了说谎的人，词条与地方志难免有误差。若你发现释义与考题对不上——别怀疑自己，是有人动了手脚。以本关词条清单与现场判定为准，错的记在 Pary 账上。
   <span class="intel-sign">—— Pary · 安全屋情报局</span></div>`;
 let levelTimer = null;
+/* 战斗代次：离开/重开关卡时递增，使旧的延迟推进回调自动失效，避免把地图拉回战斗 */
+let battleEpoch = 0;
+/* 管理员页渲染序号：切走页面后作废旧请求，避免慢加载覆盖当前页面 */
+let adminRenderSeq = 0;
+/* 积分写串行锁：同一浏览器内的读-改-写排队执行，避免并发互相覆盖 */
+let pointsQueue = Promise.resolve();
+function withPointsLock(fn){
+  const result = pointsQueue.then(fn, fn);
+  pointsQueue = result.catch(()=>{});
+  return result;
+}
 
 function stopLevelTimer(){ if(levelTimer){ clearInterval(levelTimer); levelTimer=null; } }
 function fmtDur(sec){
@@ -1370,27 +1385,29 @@ function pointsRuleText(score){
 async function awardPoints(delta){
   if(!S.user||!Number(delta))return 0;
   const uid=S.user.id;
-  for(let attempt=0;attempt<3;attempt++){
-    try{
-      // 先读云端最新值再累加，避免旧缓存覆盖已有积分
-      const fresh=await cloud.database.from("app_users").select("id,points").eq("id",uid).maybeSingle();
-      if(fresh.error) throw new Error(fresh.error.message||"读取积分失败");
-      const base=Math.max(0,Number(fresh.data&&fresh.data.points)||0);
-      const next=Math.max(0,base+Number(delta));
-      const {error}=await cloud.database.from("app_users").update({points:next}).eq("id",uid);
-      if(error) throw new Error(error.message||"保存积分失败");
-      S.user.points=next;
-      localStorage.setItem("ps_user",JSON.stringify(S.user));
-      const cached=(S.users||[]).find(u=>u.username===S.user.username);
-      if(cached)cached.points=next;
-      renderUserBox();
-      renderLeaderboard();
-      return Number(delta);
-    }catch(e){
-      if(attempt===2){toast("积分保存失败："+(e.message||"未知错误")+"。请刷新页面后重试，本关积分未记录。",true);return 0;}
+  return withPointsLock(async()=>{
+    for(let attempt=0;attempt<3;attempt++){
+      try{
+        // 先读云端最新值再累加，避免旧缓存覆盖已有积分
+        const fresh=await cloud.database.from("app_users").select("id,points").eq("id",uid).maybeSingle();
+        if(fresh.error) throw new Error(fresh.error.message||"读取积分失败");
+        const base=Math.max(0,Number(fresh.data&&fresh.data.points)||0);
+        const next=Math.max(0,base+Number(delta));
+        const {error}=await cloud.database.from("app_users").update({points:next}).eq("id",uid);
+        if(error) throw new Error(error.message||"保存积分失败");
+        S.user.points=next;
+        localStorage.setItem("ps_user",JSON.stringify(S.user));
+        const cached=(S.users||[]).find(u=>u.username===S.user.username);
+        if(cached)cached.points=next;
+        renderUserBox();
+        renderLeaderboard();
+        return Number(delta);
+      }catch(e){
+        if(attempt===2){toast("积分保存失败："+(e.message||"未知错误")+"。请刷新页面后重试，本关积分未记录。",true);return 0;}
+      }
     }
-  }
-  return 0;
+    return 0;
+  });
 }
 function calcScore(b){
   const studyNeed=b.studyRequired||MIN_STUDY_SEC;
@@ -1477,6 +1494,7 @@ function startStoryBattle(n,keepMusic){
   stopLevelTimer();
   const d=STORY_DIRS.find(x=>x.key===S.storyDir);const lv=d.levels[n-1];
   const qs=prepareLevelQuestions(lv.monsters,lv.boss,true);
+  battleEpoch++;
   S.storyBattle={level:n,phase:"story",idx:0,monsters:qs.monsters,boss:qs.boss,
     bossIdx:0,bossHp:3,mistakes:0,wrongMonsters:[],wrongAll:[],retryQueue:[],retryIdx:0,correctThisLevel:0,answered:false,
     theme:lv.theme,story:lv.story,npc:lv.npc,avatar:lv.avatar,knowledge:lv.knowledge,chapter:lv.chapter,
@@ -1512,7 +1530,7 @@ function drawStoryBattle(){
     <div class="q-card"><div class="q-phase ${isBoss?'boss':''}">${phaseLabel}</div>
       <div class="q-text">${esc(q.q)}${qIpa(q.q)}</div><div class="opts" id="sOpts"></div><div class="feedback" id="sFb"></div>
       <div class="battle-foot"><span class="hint">知识点来源 · ${esc(q.src)}</span><button class="btn sm" id="sfxToggleS3">🔊 ${SFX.enabled?'开':'关'}</button></div></div></div>`;
-  $("#sbBackLv").onclick=()=>{stopLevelTimer();openStoryDirection(S.storyDir);};
+  $("#sbBackLv").onclick=()=>{battleEpoch++;stopLevelTimer();openStoryDirection(S.storyDir);};
   $("#sfxToggleS3").onclick=()=>{SFX.toggle();drawStoryBattle();};
   $("#sMistDots").innerHTML=Array.from({length:5},(_,i)=>`<span class="mist-dot ${i<b.mistakes?'on':''}"></span>`).join("");
   const opts=$("#sOpts");
@@ -1558,14 +1576,14 @@ function storyAnswer(i,q,btn){
   if(correct){
     btn.classList.add("correct");SFX.play("hit");fb.className="feedback ok show";
     fb.innerHTML=(b.phase==="retry"?"✓ 错题攻克！Pary 的算盘落空了。":"✓ 答对了！小 Rary 被击退。")+(q.explain?`<br><span style="opacity:.8">${esc(q.explain)}</span>`:"");
-    b.correctThisLevel++;setTimeout(()=>storyNext(),1000);
+    b.correctThisLevel++;const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)storyNext();},1000);
   }else{
     btn.classList.add("wrong");SFX.play("hurt");b.mistakes++;fb.className="feedback no show";
     fb.innerHTML="✗ 答错了。正确答案是 "+("ABCD"[q.answer])+"。"+(q.explain?`<br><span style="opacity:.8">${esc(q.explain)}</span>`:"")+"<br><span style='opacity:.7'>这道题留到本关最后统一重做一次，先继续下一题。</span>";
     recordWrong(b,q,b.phase);
     if(b.phase==="monster"&&!b.wrongMonsters.includes(q))b.wrongMonsters.push(q);
     // 答错不卡在原地进行：直接进入下一题，错题统一留到关卡最后处理
-    setTimeout(()=>{storyNext();},1400);
+    const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)storyNext();},1400);
   }
 }
 function storyNext(){
@@ -1715,6 +1733,7 @@ function startWordBattle(n,keepMusic){
       return [k,m.explain||m.q];
     }).filter(Boolean);
   }
+  battleEpoch++;
   S.battle={level:n,phase:"study",idx:0,monsters,boss,bossIdx:0,bossHp:3,
     mistakes:0,wrongMonsters:[],wrongAll:[],retryQueue:[],retryIdx:0,correctThisLevel:0,answered:false,theme:lv.theme,knowledge,dirName:d.name,
     studyRequired:calcStudySec(knowledge),studyLeft:0,studySpan:0,studyStart:null,studyEnd:null,
@@ -1776,19 +1795,19 @@ function drawWordBattle(){
       <div class="q-text">${esc(q.q)}${qIpa(q.q)}</div><div class="opts" id="wOpts"></div><div class="feedback" id="wFb"></div>
       <div class="battle-foot"><span class="hint">题目来源讲义 · ${esc(q.src)}</span><button class="btn sm" id="sfxToggleW3">🔊 ${SFX.enabled?'开':'关'}</button></div>
       <span class="intel-inline">群众之中有坏人，释义与考题若有出入，以现场判定为准（错的记在 Pary 账上）。</span></div></div>`;
-  $("#wbBackLv").onclick=()=>{stopLevelTimer();openWordDirection(S.gameDir);};$("#sfxToggleW3").onclick=()=>{SFX.toggle();drawWordBattle();};
+  $("#wbBackLv").onclick=()=>{battleEpoch++;stopLevelTimer();openWordDirection(S.gameDir);};$("#sfxToggleW3").onclick=()=>{SFX.toggle();drawWordBattle();};
   $("#wMistDots").innerHTML=Array.from({length:5},(_,i)=>`<span class="mist-dot ${i<b.mistakes?'on':''}"></span>`).join("");
   const opts=$("#wOpts");q.options.forEach((o,i)=>{const btn=document.createElement("button");btn.className="opt";btn.innerHTML=`<span class="k">${"ABCD"[i]}</span><span>${esc(o)}</span>`;btn.onclick=()=>wordAnswer(i,q,btn);opts.appendChild(btn);});
 }
 function wordAnswer(i,q,btn){
   const b=S.battle;if(b.answered)return;b.answered=true;const correct=i===q.answer,fb=$("#wFb");
   $$("#wOpts .opt").forEach((el,idx)=>{el.disabled=true;if(idx===q.answer)el.classList.add("correct");});
-  if(correct){btn.classList.add("correct");SFX.play("hit");fb.className="feedback ok show";fb.innerHTML=(b.phase==="retry"?"✓ 错题攻克！Pary 又被击退一次。":"✓ 回答正确！")+(q.explain?`<br><span style="opacity:.8">${esc(q.explain)}</span>`:"");b.correctThisLevel++;setTimeout(()=>wordNext(),1000);}
+  if(correct){btn.classList.add("correct");SFX.play("hit");fb.className="feedback ok show";fb.innerHTML=(b.phase==="retry"?"✓ 错题攻克！Pary 又被击退一次。":"✓ 回答正确！")+(q.explain?`<br><span style="opacity:.8">${esc(q.explain)}</span>`:"");b.correctThisLevel++;const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)wordNext();},1000);}
   else{btn.classList.add("wrong");SFX.play("hurt");b.mistakes++;fb.className="feedback no show";fb.innerHTML="✗ 回答错误。正确答案 "+("ABCD"[q.answer])+"。"+(q.explain?`<br><span style="opacity:.8">${esc(q.explain)}</span>`:"")+"<br><span style='opacity:.7'>这道题留到本关最后统一重做一次，先继续下一题。</span>";
     recordWrong(b,q,b.phase);
     if(b.phase==="monster"&&!b.wrongMonsters.includes(q))b.wrongMonsters.push(q);
     // 答错不卡在原地进行：直接进入下一题，错题统一留到关卡最后处理
-    setTimeout(()=>{wordNext();},1400);
+    const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)wordNext();},1400);
   }
 }
 function wordNext(){const b=S.battle;b.answered=false;
@@ -1951,10 +1970,13 @@ function showChangePwd(){
    管理员权限
    ============================================================ */
 async function renderAdmin(main){
+  const seq=++adminRenderSeq;
   main.innerHTML='<div class="card"><div class="empty">正在加载用户数据…</div></div>';
   const{data:users,error}=await cloud.database.from("app_users").select("*").order("created_at",{ascending:false});
+  if(seq!==adminRenderSeq||S.page!=="admin")return;  // 已切走则放弃渲染
   if(error){main.innerHTML='<div class="card empty">加载失败：'+esc(error.message)+'</div>';return;}
   const{data:settings}=await cloud.database.from("app_settings").select("*");
+  if(seq!==adminRenderSeq||S.page!=="admin")return;  // 已切走则放弃渲染
   const tm=(settings||[]).find(s=>s.key==="team_max_size");if(tm)S.teamMax=parseInt(tm.value)||4;
   const pending=(users||[]).filter(u=>u.status==="pending"),active=(users||[]).filter(u=>u.status==="active");
   main.innerHTML=`<div class="sec-title" style="margin-bottom:16px">管理员权限</div>
@@ -2076,9 +2098,20 @@ function openPointsAdjuster(id,uname,cur,main){
   $("#ptsApply").onclick=async()=>{
     const delta=parseInt($("#ptsDelta").value,10);
     if(!Number.isFinite(delta)||delta===0){toast("请输入非零整数",true);return;}
-    const next=Math.max(0,cur+delta);
-    const {error}=await cloud.database.from("app_users").update({points:next}).eq("id",id);
-    if(error){toast("调整失败："+error.message,true);return;}
+    // 串行锁内重读最新积分再累加，避免覆盖用户刚获得的积分
+    const result=await withPointsLock(async()=>{
+      try{
+        const fresh=await cloud.database.from("app_users").select("points").eq("id",id).maybeSingle();
+        if(fresh.error) throw new Error(fresh.error.message||"读取积分失败");
+        const base=Math.max(0,Number(fresh.data&&fresh.data.points)||0);
+        const next=Math.max(0,base+delta);
+        const {error}=await cloud.database.from("app_users").update({points:next}).eq("id",id);
+        if(error) throw new Error(error.message||"保存积分失败");
+        return {ok:true,next};
+      }catch(e){ return {ok:false,err:e.message||"未知错误"}; }
+    });
+    if(!result.ok){toast("调整失败："+(result.err||"未知错误"),true);return;}
+    const next=result.next;
     const cached=(S.users||[]).find(u=>u.id===id);if(cached)cached.points=next;
     if(S.user&&S.user.id===id){S.user.points=next;localStorage.setItem("ps_user",JSON.stringify(S.user));renderUserBox();}
     // 定向告知公告
@@ -2200,12 +2233,21 @@ async function init(){
   });
   $("#navHome").onclick=()=>go("home");
   $("#bootMsg").textContent="正在连接云端服务…";
-  const user=await loadUser();
-  await loadLectureAccess();
-  setUser(user);
-  await loadSettings();
-  if(user){await loadProgress();await loadMyTeam();}
-  $("#boot").style.display="none";$("#app").style.display="block";
+  let user=null;
+  try{
+    user=await loadUser();
+    await loadLectureAccess();
+    setUser(user);
+    await loadSettings();
+    if(user){await loadProgress();await loadMyTeam();}
+  }catch(err){
+    // 云端故障或数据异常时不要卡死：以未登录状态继续，保证遮罩一定消失
+    try{console.warn("init 加载异常，将以离线状态继续：",err);}catch(_){}
+    user=null;
+    try{setUser(null);}catch(_){}
+  }finally{
+    $("#boot").style.display="none";$("#app").style.display="block";
+  }
   AUDIO.mountDock(document.body);
 
   if(user){
