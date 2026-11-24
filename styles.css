@@ -153,6 +153,17 @@ mark{background:rgba(251,191,36,.25);color:#fde68a;border-radius:3px;padding:0 2
 .level-node.locked .lec-chip{opacity:.6}
 .ln-check{position:absolute;right:12px;top:12px;color:var(--green);font-size:15px}
 
+/* 讲义中心内嵌（iframe） */
+.lec-embed{display:flex;flex-direction:column;height:calc(100vh - 120px);min-height:520px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.lec-embed-bar{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel2);flex-shrink:0}
+.lec-embed-title{font-size:14px;font-weight:700;color:var(--accent);white-space:nowrap}
+.lec-embed-hint{font-size:11px;color:var(--dim);margin-left:auto;text-align:right}
+.lec-frame{flex:1;width:100%;border:0;background:#05100b;display:block}
+@media (max-width:720px){
+  .lec-embed{height:calc(100vh - 100px);min-height:460px}
+  .lec-embed-hint{display:none}
+}
+
 /* USER CENTER */
 .uc-grid{display:grid;grid-template-columns:300px 1fr;gap:18px}
 .profile-card{text-align:center}

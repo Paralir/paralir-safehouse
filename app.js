@@ -77,21 +77,67 @@ function canUseLectures(u=S.user){
   return !!(S.lectureAccess && S.lectureAccess.has(String(u.username||"").toLocaleLowerCase()));
 }
 function openOwnerLectures(){
-  if(!canUseLectures()){ toast("无权访问",true); return; }
-  const w = window.open(OWNER_LECTURES_URL,"_blank","noopener,noreferrer");
-  if(!w) location.href = OWNER_LECTURES_URL;
+  // 讲义中心改为主站内嵌页，不再新开窗口
+  go("owner-lectures");
 }
-/* 升级之路关卡 → 讲义章节：白名单判断 + sharecode 透传 + 锚点定位 */
+/* ---------- 讲义中心：主站内嵌（iframe） ---------- */
+function activatePageTab(page){
+  S.page=page;
+  $$(".tab").forEach(t=>t.classList.toggle("active",t.dataset.page===page));
+  window.scrollTo(0,0);
+}
+function lectureEmbedSrc(dir,anchor){
+  const q = (typeof location!=="undefined" && location.search) ? location.search : "";
+  const base = dir ? ("lectures/"+dir+"/index.html") : "lectures/index.html";
+  return base + q + (anchor ? ("#"+anchor) : "");
+}
+/* 在主内容区内嵌讲义；dir/anchor 为空时显示讲义中心首页；returnFn 负责返回原页面 */
+function renderLecturesEmbed(main,dir,anchor,returnFn){
+  if(!canUseLectures()){ toast("该讲义仅对 Paralir 授权的账号开放",true); return false; }
+  stopLevelTimer();   // 看讲义期间暂停关卡倒计时，返回时由 returnFn 恢复
+  if(typeof returnFn==="function") S.lecturesReturn=returnFn;
+  const src=lectureEmbedSrc(dir,anchor);
+  const title=dir ? (String(dir).toUpperCase()+" 讲义") : "CTF 讲义中心";
+  activatePageTab("owner-lectures");
+  main.innerHTML=`<div class="lec-embed">
+    <div class="lec-embed-bar">
+      <button class="btn sm" id="lecBack">← 返回</button>
+      <div class="lec-embed-title">📚 ${esc(title)}</div>
+      <div class="lec-embed-hint">讲义已内嵌在安全屋内 · 点击章节可在框内直接跳转，无需离开当前网站</div>
+    </div>
+    <iframe id="lecFrame" class="lec-frame" src="${esc(src)}" title="${esc(title)}" referrerpolicy="no-referrer"></iframe>
+  </div>`;
+  $("#lecBack").onclick=()=>{ const fn=S.lecturesReturn; S.lecturesReturn=null; if(fn) fn(); else go("home"); };
+  return true;
+}
+/* 升级之路关卡 → 讲义章节：白名单判断 + sharecode 透传 + 锚点定位（内嵌） */
 function storyLectureUrl(dir,anchor){
   const q = (typeof location!=="undefined" && location.search) ? location.search : "";
   return "lectures/"+dir+"/index.html"+q+"#"+anchor;
 }
 function openStoryLecture(dir,anchor){
-  if(!canUseLectures()){ toast("该讲义仅对 Paralir 授权的账号开放",true); return; }
-  const url=storyLectureUrl(dir,anchor);
   try{ SFX.play("enter"); }catch(e){}
-  const w=window.open(url,"_blank","noopener,noreferrer");
-  if(!w) location.href=url;
+  const main=$("#main");
+  // 记录进入前所在页面，供「返回」还原：用当前 DOM 判断是否真在关卡战斗/学习页
+  let backFn;
+  const b=S.storyBattle;
+  const inBattle=!!(document.querySelector(".battle-wrap") || document.querySelector(".story-intro"));
+  if(S.page==="story" && inBattle && b && b.level){
+    const phase=b.phase;
+    // 关卡战斗/学习页：返回后恢复对应阶段并重绘（计时器在看讲义期间已暂停）
+    backFn=()=>{
+      drawStoryBattle();
+      if(phase==="story") startStudyClock(b,()=>drawStoryBattle());
+      else if(phase==="monster"||phase==="boss"||phase==="retry") startBattleClock(b,()=>drawStoryBattle(),true);
+    };
+  }else if(S.page==="story" && S.storyDir){
+    const key=S.storyDir;
+    backFn=()=>{ activatePageTab("story"); openStoryDirection(key); };
+  }else{
+    const prev=(S.page&&S.page!=="owner-lectures")?S.page:"home";
+    backFn=()=>go(prev);
+  }
+  renderLecturesEmbed(main,dir,anchor,backFn);
 }
 function lectureChipsHTML(chapters){
   if(!Array.isArray(chapters)||!chapters.length) return "";
@@ -515,7 +561,12 @@ function go(page){
     return;
   }
   if(page==="admin"&&!(S.user&&S.user.role==="admin")){toast("无权访问",true);return;}
-  if(page==="owner-lectures"){ if(!canUseLectures()){toast("无权访问",true);return;} openOwnerLectures(); return; }
+  if(page==="owner-lectures"){
+    if(!canUseLectures()){toast("无权访问",true);return;}
+    const prev=(S.page&&S.page!=="owner-lectures")?S.page:"home";
+    renderLecturesEmbed($("#main"),null,null,()=>go(prev));
+    return;
+  }
   if((S.page==="story"||S.page==="game")&&page!==S.page) stopLevelTimer();  // 离开关卡页时停止计时
   if(S.chatTimer){stopChat();}
   S.page=page;
