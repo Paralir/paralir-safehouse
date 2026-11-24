@@ -2206,7 +2206,7 @@ function showRegisterForm(){
 /* ============================================================
    Init
    ============================================================ */
-function setLogo(){$("#brandLogo").src=window.AVATAR;$("#bootLogo").src=window.AVATAR;$("#favicon").href=window.AVATAR;}
+function setLogo(){$("#brandLogo").src=window.AVATAR;$("#bootLogo").src=window.AVATAR;$("#gateLogo").src=window.AVATAR;$("#favicon").href=window.AVATAR;}
 async function init(){
   setLogo();
   // 可爱的按键音效（仅按钮 / 卡片等控件点击时播放；可一键关闭）
