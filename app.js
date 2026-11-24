@@ -81,6 +81,28 @@ function openOwnerLectures(){
   const w = window.open(OWNER_LECTURES_URL,"_blank","noopener,noreferrer");
   if(!w) location.href = OWNER_LECTURES_URL;
 }
+/* 升级之路关卡 → 讲义章节：白名单判断 + sharecode 透传 + 锚点定位 */
+function storyLectureUrl(dir,anchor){
+  const q = (typeof location!=="undefined" && location.search) ? location.search : "";
+  return "lectures/"+dir+"/index.html"+q+"#"+anchor;
+}
+function openStoryLecture(dir,anchor){
+  if(!canUseLectures()){ toast("该讲义仅对 Paralir 授权的账号开放",true); return; }
+  const url=storyLectureUrl(dir,anchor);
+  try{ SFX.play("enter"); }catch(e){}
+  const w=window.open(url,"_blank","noopener,noreferrer");
+  if(!w) location.href=url;
+}
+function lectureChipsHTML(chapters){
+  if(!Array.isArray(chapters)||!chapters.length) return "";
+  return chapters.map(c=>`<button type="button" class="lec-chip" data-lecdir="${esc(c.dir)}" data-lecanchor="${esc(c.a)}" title="跳转到讲义对应章节">📖 ${esc(c.t)}</button>`).join("");
+}
+function bindLectureChips(root){
+  const nodes = root && root.querySelectorAll ? root.querySelectorAll(".lec-chip") : [];
+  Array.from(nodes).forEach(btn=>{
+    btn.onclick=(e)=>{ e.stopPropagation(); openStoryLecture(btn.dataset.lecdir,btn.dataset.lecanchor); };
+  });
+}
 function syncOwnerLecturesEntry(){
   const nav = $("#topnav");
   if(!nav || typeof nav.insertBefore!=="function") return;
@@ -1474,11 +1496,14 @@ function openStoryDirection(key){
   const ll=$("#storyLevelList");
   ll.innerHTML=d.levels.map(l=>{
     const isCleared=l.n<=p.cleared, isOpen=l.n===p.cleared+1, locked=l.n>p.cleared+1;
+    const chips=lectureChipsHTML(l.lecture);
     return `<div class="level-node ${isCleared?'cleared':''} ${locked?'locked':''}" data-n="${l.n}" style="--c:${d.color}">
       ${isCleared?'<span class="ln-check">✓</span>':''}<div class="ln-num">LEVEL ${String(l.n).padStart(2,'0')}</div>
       <div class="ln-theme">${esc(l.theme)}</div>
+      ${chips?`<div class="ln-lecture">${chips}</div>`:''}
       <div class="ln-status ${isCleared?'cleared':locked?'locked':'open'}">${isCleared?'已通关':locked?'未解锁':'可挑战 ▶'}</div></div>`;
   }).join("");
+  bindLectureChips(ll);
   $$("#storyLevelList .level-node:not(.locked)").forEach(el=>el.onclick=()=>startStoryBattle(+el.dataset.n));
 }
 function startStoryBattle(n,keepMusic){
@@ -1488,7 +1513,7 @@ function startStoryBattle(n,keepMusic){
   battleEpoch++;
   S.storyBattle={level:n,phase:"story",idx:0,monsters:qs.monsters,boss:qs.boss,
     bossIdx:0,bossHp:3,mistakes:0,wrongMonsters:[],wrongAll:[],retryQueue:[],retryIdx:0,correctThisLevel:0,answered:false,
-    theme:lv.theme,story:lv.story,npc:lv.npc,avatar:lv.avatar,knowledge:lv.knowledge,chapter:lv.chapter,
+    theme:lv.theme,story:lv.story,npc:lv.npc,avatar:lv.avatar,knowledge:lv.knowledge,chapter:lv.chapter,lecture:lv.lecture,
     studyRequired:calcStudySec(lv.knowledge),studyLeft:0,studySpan:0,studyStart:null,studyEnd:null,
     studyReady:false,reviewed:false,battleLimit:calcBattleSec(lv),battleStart:null,battleEnd:null,battleLeft:0};
   S.storyBattle.studyLeft=S.storyBattle.studyRequired;
@@ -1538,6 +1563,7 @@ function drawStoryIntro(b,d,main){
       <button class="btn sm" id="sfxToggleSI">🔊 ${SFX.enabled?'开':'关'}</button></div>
     <div class="story-intro">
       <div class="si-chapter">${esc(b.chapter)} · LEVEL ${String(b.level).padStart(2,'0')}</div>
+      <div class="si-lecture">对应讲义章节：${lectureChipsHTML(b.lecture)}</div>
       <div class="si-head"><div class="snpc-avatar lg">${esc(b.avatar)}</div>
         <div><div class="snpc-name" style="color:var(--accent)">${esc(b.npc)} 的故事时间</div>
         <div class="si-theme">${esc(b.theme)}</div></div></div>
@@ -1551,6 +1577,7 @@ function drawStoryIntro(b,d,main){
         <button class="btn" id="siReplay5">再看一遍（5 分钟）</button>
         <button class="btn" id="siReplay10">再看一遍（10 分钟）</button></div></div></div>`;
   $("#sbIntroBack").onclick=()=>{stopLevelTimer();openStoryDirection(S.storyDir);};
+  bindLectureChips(main);
   $("#sfxToggleSI").onclick=()=>{SFX.toggle();drawStoryBattle();};
   $("#siReplay5").onclick=()=>reviewAgain(b,REPLAY_5,()=>drawStoryBattle());
   $("#siReplay10").onclick=()=>reviewAgain(b,REPLAY_10,()=>drawStoryBattle());
