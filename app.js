@@ -1013,14 +1013,17 @@ function renderAnnounceManageList(){
       <span class="ami-time">${fmtAnnTime(a.start_at)} → ${fmtAnnTime(a.end_at)}</span></div>
       <div class="ami-content">${esc(a.content)}</div>
       ${target?`<div class="ami-target">投放至：${esc(target)}</div>`:''}
+      ${a.active===false?`<div class="ami-target">🕒 撤回时间 ${fmtAnnTime(a.recalled_at)}${a.recalled_by?' · 操作人 '+esc(a.recalled_by):''}</div>`:''}
       <div class="row-actions" style="margin-top:8px"><button class="btn sm" data-ann-edit="${a.id}">编辑</button>
-      <button class="btn sm danger" data-ann-del="${a.id}">撤回</button></div></div>`;
+      ${a.active===false?'<span class="cs-hint" style="font-size:11px">已撤回</span>':`<button class="btn sm danger" data-ann-del="${a.id}">撤回</button>`}</div></div>`;
   }).join("");
   $$("[data-ann-edit]").forEach(b=>b.onclick=()=>showAnnounceForm(S.announcements.find(x=>x.id===+b.dataset.annEdit)));
   $$("[data-ann-del]").forEach(b=>b.onclick=async()=>{
     const a=S.announcements.find(x=>x.id===+b.dataset.annDel);
-    if(!a)return;
-    const{error}=await cloud.database.from("announcements").delete().eq("id",a.id);
+    if(!a||a.active===false)return;
+    // 软删除：记录撤回时间而不物理删除，便于留痕与核对
+    const{error}=await cloud.database.from("announcements")
+      .update({active:false,recalled_at:new Date().toISOString(),recalled_by:S.user&&S.user.username||""}).eq("id",a.id);
     if(error){toast("撤回失败："+error.message,true);return;}
     await loadAnnouncements();renderAnnounceBar();renderAnnounceManageList();toast("公告已撤回");
   });
