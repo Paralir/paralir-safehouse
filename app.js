@@ -1020,7 +1020,6 @@ function renderAnnounceManageList(){
   $$("[data-ann-del]").forEach(b=>b.onclick=async()=>{
     const a=S.announcements.find(x=>x.id===+b.dataset.annDel);
     if(!a)return;
-    if(!confirm("确认撤回这条公告？\n\n"+a.content))return;
     const{error}=await cloud.database.from("announcements").delete().eq("id",a.id);
     if(error){toast("撤回失败："+error.message,true);return;}
     await loadAnnouncements();renderAnnounceBar();renderAnnounceManageList();toast("公告已撤回");
