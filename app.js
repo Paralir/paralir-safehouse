@@ -29,6 +29,10 @@ const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">
 function safeParseJSON(raw, fallback){
   try{ const v=JSON.parse(raw); return v??fallback; }catch(e){ return fallback; }
 }
+/* 云端请求加超时，防止网络挂起导致启动遮罩一直不收 */
+function withTimeout(p,ms=8000){
+  return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error("cloud timeout")),ms))]);
+}
 
 /* 讲义中心白名单：只有 Paralir 能管理，不绑定管理员角色 */
 const OWNER_USERNAME = "Paralir";
@@ -449,12 +453,16 @@ async function loadUser(){
   const saved=safeParseJSON(localStorage.getItem("ps_user"),null);
   if(!saved) return null;
   const {data,error}=await cloud.database.from("app_users").select("*").eq("id",saved.id).maybeSingle();
-  if(error||!data||data.status!=="active"){ localStorage.removeItem("ps_user"); return null; }
+  // 网络/服务异常时返回 undefined（保留登录态，下次刷新重试）；只有账号确实不存在或被禁用才清除
+  if(error) return undefined;
+  if(!data||data.status!=="active"){ localStorage.removeItem("ps_user"); return null; }
   return data;
 }
-function setUser(u){
+function setUser(u,opts){
   S.user=u;
-  if(u) localStorage.setItem("ps_user",JSON.stringify(u)); else localStorage.removeItem("ps_user");
+  // 本地只保存定位用的最小信息：不落 pass_hash / 邮箱 / 手机号等敏感字段
+  if(u) localStorage.setItem("ps_user",JSON.stringify({id:u.id,username:u.username}));
+  else if(!(opts&&opts.keepSession)) localStorage.removeItem("ps_user");
   renderUserBox();
   const adminTab=$(".tab[data-page=admin]");
   if(adminTab) adminTab.style.display=(u&&u.role==="admin")?"":"none";
@@ -463,10 +471,11 @@ function setUser(u){
 async function login(username,password){
   const {data,error}=await cloud.database.from("app_users").select("*").eq("username",username).maybeSingle();
   if(error) throw new Error("连接失败，请稍后重试");
-  if(!data) throw new Error("账号不存在");
-  if(data.status!=="active") throw new Error(data.status==="pending"?"账号尚在审核中，请等待管理员通过":"账号已被拒绝，请联系管理员");
+  if(!data) throw new Error("账号或密码错误");
   const h=await passHash(username,password);
-  if(h!==data.pass_hash) throw new Error("密码错误");
+  if(h!==data.pass_hash) throw new Error("账号或密码错误");
+  // 先验密码再看账号状态，避免未登录者探测某个账号是否存在
+  if(data.status!=="active") throw new Error(data.status==="pending"?"账号尚在审核中，请等待管理员通过":"账号已被拒绝，请联系管理员");
   if(data.muted) toast("注意：你的账号当前处于禁言状态");
   await loadLectureAccess();
   setUser(data);
@@ -528,7 +537,7 @@ function renderUserBox(){
     $("#btnReg").onclick=showRegister;
   }else{
     const av=S.user.avatar_url||window.AVATAR;
-    box.innerHTML=`<img class="avatar-sm" src="${av}" id="uAvatar">
+    box.innerHTML=`<img class="avatar-sm" src="${esc(av)}" id="uAvatar">
       <span class="u-name" id="uName">${esc(S.user.nickname||S.user.username)}</span>
       <span class="points-chip" id="myPoints" title="闯关积分：升级之路与我是单词均可获得">🏅 ${Number(S.user.points)||0} 分</span>
       <span class="badge-role ${S.user.role==='admin'?'admin':''}">${S.user.role==='admin'?'管理员':'用户'}</span>
@@ -601,7 +610,7 @@ async function renderHome(main){
     return;
   }
   main.innerHTML=`<div class="home-hero">
-      <div class="hh-greet"><div class="hh-avatar"><img src="${S.user.avatar_url||window.AVATAR}"></div>
+      <div class="hh-greet"><div class="hh-avatar"><img src="${esc(S.user.avatar_url||window.AVATAR)}"></div>
         <div><div class="hh-title">欢迎回来，${esc(S.user.nickname||S.user.username)} 👋</div>
         <div class="hh-sub">Paralir 的安全屋 · 今天也要变强哦</div></div></div>
       <div class="hh-quick">
@@ -1583,7 +1592,7 @@ function drawStoryBattle(){
   const npcLine=isRetry?`“我又回来了！这次是你答错的题，别再让我失望。”`:isBoss?`“${esc(PARY_LINES[b.level%PARY_LINES.length])}”`:`“${esc(b.npc)}：${esc(q.q.split('』')[0].replace(/^[^：]*[：:]/,'').slice(0,60))}...”`;
   const phaseLabel=isRetry?`错题收尾 · 第 ${b.retryIdx+1} / ${totalR} 道`:isBoss?'BOSS 战 · 答对一题对 Pary 造成 1 点伤害':'故事问答 · 答对即可击败小 Rary';
   const hpLabel=isRetry?`↩️ 错题重做 ${Math.min(b.retryIdx+1,totalR)} / ${totalR}`:isBoss?'👑 Pary 病毒 BOSS':'👾 小 Rary '+Math.min(b.idx+1,totalM)+' / '+totalM;
-  const hpText=isRetry?`错题进度 ${b.retryIdx} / ${totalR}`:isBoss?'PARY HP '+b.bossHp+' / 3':'剩余小 Rary '+(totalM-b.idx)+' / '+totalM;
+  const hpText=isRetry?`错题进度 ${Math.min(b.retryIdx+1,totalR)} / ${totalR}`:isBoss?'PARY HP '+b.bossHp+' / 3':'剩余小 Rary '+(totalM-b.idx)+' / '+totalM;
   const hpWidth=isRetry?((totalR-b.retryIdx)/totalR*100):isBoss?(b.bossHp/3*100):((totalM-b.idx)/totalM*100);
   main.innerHTML=`<div class="battle-wrap">
     <div class="battle-top"><div class="crumb"><b id="sbBackLv">关卡地图</b> / ${d.name} / 第 ${b.level} 关</div>
@@ -1631,7 +1640,7 @@ function drawStoryIntro(b,d,main){
         <button class="btn" id="siReplay10">再看一遍（10 分钟）</button></div></div></div>`;
   $("#sbIntroBack").onclick=()=>{stopLevelTimer();openStoryDirection(S.storyDir);};
   bindLectureChips(main);
-  $("#sfxToggleSI").onclick=()=>{SFX.toggle();drawStoryBattle();};
+  $("#sfxToggleSI").onclick=()=>{SFX.toggle();const t=$("#sfxToggleSI");if(t)t.textContent="🔊 "+(SFX.enabled?'开':'关');};
   $("#siReplay5").onclick=()=>reviewAgain(b,REPLAY_5,()=>drawStoryBattle());
   $("#siReplay10").onclick=()=>reviewAgain(b,REPLAY_10,()=>drawStoryBattle());
   $("#siGo").onclick=()=>{
@@ -1647,21 +1656,27 @@ function storyAnswer(i,q,btn){
   if(correct){
     btn.classList.add("correct");SFX.play("hit");fb.className="feedback ok show";
     fb.innerHTML=(b.phase==="retry"?"✓ 错题攻克！Pary 的算盘落空了。":"✓ 答对了！小 Rary 被击退。")+(q.explain?`<br><span style="opacity:.8">${esc(q.explain)}</span>`:"");
-    b.correctThisLevel++;const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)storyNext();},1000);
+    b.correctThisLevel++;const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)storyNext(true);},1000);
   }else{
     btn.classList.add("wrong");SFX.play("hurt");b.mistakes++;fb.className="feedback no show";
     fb.innerHTML="✗ 答错了。正确答案是 "+("ABCD"[q.answer])+"。"+(q.explain?`<br><span style="opacity:.8">${esc(q.explain)}</span>`:"")+"<br><span style='opacity:.7'>这道题留到本关最后统一重做一次，先继续下一题。</span>";
     recordWrong(b,q,b.phase);
     if(b.phase==="monster"&&!b.wrongMonsters.includes(q))b.wrongMonsters.push(q);
     // 答错不卡在原地进行：直接进入下一题，错题统一留到关卡最后处理
-    const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)storyNext();},1400);
+    const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)storyNext(false);},1400);
   }
 }
-function storyNext(){
+function storyNext(correct){
   const b=S.storyBattle;b.answered=false;
   if(b.phase==="retry"){advanceRetry(b,true,()=>storyWinLevel(),()=>drawStoryBattle());return;}
   if(b.phase==="monster"){b.idx++;if(b.idx>=b.monsters.length){b.phase="boss";SFX.play("boss");AUDIO.playBoss();}drawStoryBattle();}
-  else{b.bossIdx++;b.bossHp--;if(b.bossHp<=0){enterRetryOrWin(b,true,()=>storyWinLevel(),()=>drawStoryBattle());return;}drawStoryBattle();}
+  else{
+    b.bossIdx++;
+    if(correct) b.bossHp--;                     // 只有答对才扣 Boss 血量
+    if(b.bossHp<=0){enterRetryOrWin(b,true,()=>storyWinLevel(),()=>drawStoryBattle());return;}
+    if(b.bossIdx>=b.boss.length) b.bossIdx=0;   // Boss 题用完仍未击杀：循环出题，直到答对 3 题或超时
+    drawStoryBattle();
+  }
 }
 async function storyWinLevel(){
   stopLevelTimer();
@@ -1833,7 +1848,7 @@ function drawWordStudy(b){
         <button class="btn" id="wiReplay5">再看一遍（5 分钟）</button>
         <button class="btn" id="wiReplay10">再看一遍（10 分钟）</button></div></div></div>`;
   $("#wbIntroBack").onclick=()=>{stopLevelTimer();openWordDirection(S.gameDir);};
-  $("#sfxToggleWS").onclick=()=>{SFX.toggle();drawWordBattle();};
+  $("#sfxToggleWS").onclick=()=>{SFX.toggle();const t=$("#sfxToggleWS");if(t)t.textContent="🔊 "+(SFX.enabled?'开':'关');};
   $("#wiReplay5").onclick=()=>reviewAgain(b,REPLAY_5,()=>drawWordBattle());
   $("#wiReplay10").onclick=()=>reviewAgain(b,REPLAY_10,()=>drawWordBattle());
   $("#wiGo").onclick=()=>{
@@ -1873,18 +1888,24 @@ function drawWordBattle(){
 function wordAnswer(i,q,btn){
   const b=S.battle;if(b.answered)return;b.answered=true;const correct=i===q.answer,fb=$("#wFb");
   $$("#wOpts .opt").forEach((el,idx)=>{el.disabled=true;if(idx===q.answer)el.classList.add("correct");});
-  if(correct){btn.classList.add("correct");SFX.play("hit");fb.className="feedback ok show";fb.innerHTML=(b.phase==="retry"?"✓ 错题攻克！Pary 又被击退一次。":"✓ 回答正确！")+(q.explain?`<br><span style="opacity:.8">${esc(q.explain)}</span>`:"");b.correctThisLevel++;const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)wordNext();},1000);}
+  if(correct){btn.classList.add("correct");SFX.play("hit");fb.className="feedback ok show";fb.innerHTML=(b.phase==="retry"?"✓ 错题攻克！Pary 又被击退一次。":"✓ 回答正确！")+(q.explain?`<br><span style="opacity:.8">${esc(q.explain)}</span>`:"");b.correctThisLevel++;const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)wordNext(true);},1000);}
   else{btn.classList.add("wrong");SFX.play("hurt");b.mistakes++;fb.className="feedback no show";fb.innerHTML="✗ 回答错误。正确答案 "+("ABCD"[q.answer])+"。"+(q.explain?`<br><span style="opacity:.8">${esc(q.explain)}</span>`:"")+"<br><span style='opacity:.7'>这道题留到本关最后统一重做一次，先继续下一题。</span>";
     recordWrong(b,q,b.phase);
     if(b.phase==="monster"&&!b.wrongMonsters.includes(q))b.wrongMonsters.push(q);
     // 答错不卡在原地进行：直接进入下一题，错题统一留到关卡最后处理
-    const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)wordNext();},1400);
+    const ep=battleEpoch;setTimeout(()=>{if(battleEpoch===ep)wordNext(false);},1400);
   }
 }
-function wordNext(){const b=S.battle;b.answered=false;
+function wordNext(correct){const b=S.battle;b.answered=false;
   if(b.phase==="retry"){advanceRetry(b,false,()=>wordWinLevel(),()=>drawWordBattle());return;}
   if(b.phase==="monster"){b.idx++;if(b.idx>=b.monsters.length){b.phase="boss";SFX.play("boss");AUDIO.playBoss();}drawWordBattle();}
-  else{b.bossIdx++;b.bossHp--;if(b.bossHp<=0){enterRetryOrWin(b,false,()=>wordWinLevel(),()=>drawWordBattle());return;}drawWordBattle();}}
+  else{
+    b.bossIdx++;
+    if(correct) b.bossHp--;                     // 只有答对才扣 Boss 血量
+    if(b.bossHp<=0){enterRetryOrWin(b,false,()=>wordWinLevel(),()=>drawWordBattle());return;}
+    if(b.bossIdx>=b.boss.length) b.bossIdx=0;   // Boss 题用完仍未击杀：循环出题
+    drawWordBattle();
+  }}
 async function wordWinLevel(){
   stopLevelTimer();
   const b=S.battle,d=WORD_DIRS.find(x=>x.key===S.gameDir);b.battleEnd=Date.now();
@@ -2043,7 +2064,10 @@ function showChangePwd(){
 async function renderAdmin(main){
   const seq=++adminRenderSeq;
   main.innerHTML='<div class="card"><div class="empty">正在加载用户数据…</div></div>';
-  const{data:users,error}=await cloud.database.from("app_users").select("*").order("created_at",{ascending:false});
+  // 只取管理面板需要的字段：不再把 pass_hash 拉进前端内存
+  const{data:users,error}=await cloud.database.from("app_users")
+    .select("id,username,nickname,role,status,muted,points,birthday,birthday_changed_at,created_at,email,phone,gender")
+    .order("created_at",{ascending:false});
   if(seq!==adminRenderSeq||S.page!=="admin")return;  // 已切走则放弃渲染
   if(error){main.innerHTML='<div class="card empty">加载失败：'+esc(error.message)+'</div>';return;}
   const{data:settings}=await cloud.database.from("app_settings").select("*");
@@ -2286,7 +2310,7 @@ function showRegisterForm(){
 /* ============================================================
    Init
    ============================================================ */
-function setLogo(){$("#brandLogo").src=window.AVATAR;$("#bootLogo").src=window.AVATAR;$("#gateLogo").src=window.AVATAR;$("#favicon").href=window.AVATAR;}
+function setLogo(){$("#brandLogo").src=window.AVATAR;$("#bootLogo").src=window.AVATAR;$("#gateLogo").src=window.AVATAR;}
 async function init(){
   setLogo();
   // 可爱的按键音效（仅按钮 / 卡片等控件点击时播放；可一键关闭）
@@ -2306,16 +2330,17 @@ async function init(){
   $("#bootMsg").textContent="正在连接云端服务…";
   let user=null;
   try{
-    user=await loadUser();
-    await loadLectureAccess();
-    setUser(user);
-    await loadSettings();
-    if(user){await loadProgress();await loadMyTeam();}
+    user=await withTimeout(loadUser());
+    if(user===undefined){ user=null; setUser(null,{keepSession:true}); }  // 云端暂时不可用：保留登录态待下次重试
+    else setUser(user);
+    await withTimeout(loadLectureAccess());
+    await withTimeout(loadSettings());
+    if(user){await withTimeout(loadProgress());await withTimeout(loadMyTeam());}
   }catch(err){
     // 云端故障或数据异常时不要卡死：以未登录状态继续，保证遮罩一定消失
     try{console.warn("init 加载异常，将以离线状态继续：",err);}catch(_){}
     user=null;
-    try{setUser(null);}catch(_){}
+    try{setUser(null,{keepSession:true});}catch(_){}
   }finally{
     $("#boot").style.display="none";$("#app").style.display="block";
   }
