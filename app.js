@@ -67,12 +67,8 @@ async function loadLectureAccess(){
 }
 async function saveLectureAccess(names){
   const list=normalizeLectureAccess(names);
-  const value=JSON.stringify(list), now=new Date().toISOString();
-  const {data:existing}=await cloud.database.from("app_settings").select("id").eq("key",LECTURE_ACCESS_KEY).maybeSingle();
-  let error;
-  if(existing) ({error}=await cloud.database.from("app_settings").update({value,updated_at:now}).eq("id",existing.id));
-  else ({error}=await cloud.database.from("app_settings").insert({key:LECTURE_ACCESS_KEY,value,updated_at:now}));
-  if(error) throw new Error(error.message);
+  const res=await rpc("ps_set_lecture_access",{p_token:getToken(),p_value:JSON.stringify(list)});
+  if(!res.ok) throw new Error(errMsg(res.error));
   applyLectureAccess(list);
 }
 function canUseLectures(u=S.user){
@@ -418,8 +414,31 @@ function toast(msg,err){const t=$("#toast");t.textContent=msg;t.className="toast
 function modal(html,small){const m=$("#modal");$("#modalBox").className="modal"+(small?" sm":"");$("#modalBox").innerHTML=html;m.style.display="grid";}
 function closeModal(){$("#modal").style.display="none";}
 document.addEventListener("click",e=>{if(e.target.id==="modal"&&!S.returnModalOpen)closeModal();});
-async function sha256(str){const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");}
-async function passHash(u,p){return sha256("PARALIR_SAFEHOUSE_SALT|"+u+"|"+p);}
+/* ---------- 会话令牌 & RPC 封装（v3 契约：密码/权限全部在服务端） ---------- */
+const TOKEN_KEY="ps_token";
+function getToken(){try{return localStorage.getItem(TOKEN_KEY)||"";}catch(e){return "";}}
+function setToken(t){try{if(t)localStorage.setItem(TOKEN_KEY,t);else localStorage.removeItem(TOKEN_KEY);}catch(e){}}
+const ERR_ZH={
+  bad_credentials:"账号或密码错误",pending:"账号尚在审核中，请等待管理员通过",rejected:"账号已被拒绝，请联系管理员",
+  username_taken:"该账号已被使用",nickname_taken:"该昵称已被使用",bad_password:"当前密码错误",
+  weak_password:"密码至少 8 位",token_expired:"登录已失效，请重新登录",unauthorized:"无权操作",
+  owner_locked:"屋主的管理员权限不可修改",birthday_locked:"生日每 50 年仅可修改一次",
+  birthday_future:"生日不能是未来日期",rate_limited:"尝试过多，请 10 分钟后再试",
+  bad_input:"输入有误",target_not_found:"目标不存在",already_awarded:"本关今日已计分",
+  daily_cap:"今日积分已达上限（200）"
+};
+function errMsg(code){return ERR_ZH[code]||("操作失败："+(code||"未知错误"));}
+async function rpc(name,args){
+  const{data,error}=await cloud.database.rpc(name,args||{});
+  if(error) throw new Error(error.message||"网络异常，请稍后重试");
+  const res=data||{};
+  // 会话失效：清本地登录态并引导重新登录（登录流程内 S.user 尚为空，不会误触发）
+  if(res.ok===false&&res.error==="token_expired"&&S.user){
+    try{setUser(null);}catch(e){}
+    setTimeout(()=>{try{showLogin();}catch(e){}},300);
+  }
+  return res;
+}
 function copy(txt){navigator.clipboard.writeText(txt).catch(()=>{const a=document.createElement("textarea");a.value=txt;document.body.appendChild(a);a.select();document.execCommand("copy");a.remove();});}
 function timeAgo(ts){if(!ts)return"";const d=Date.now()-new Date(ts).getTime();const m=Math.floor(d/60000);if(m<1)return"刚刚";if(m<60)return m+"分钟前";const h=Math.floor(m/60);if(h<24)return h+"小时前";return new Date(ts).toLocaleDateString();}
 function dmRoom(a,b){return [a,b].sort().join("|");}
@@ -450,56 +469,49 @@ const PARY_LINES = ["你也是来送分数的吗？","答错一次，我就吸�
 
 /* ---------- Auth ---------- */
 async function loadUser(){
-  const saved=safeParseJSON(localStorage.getItem("ps_user"),null);
-  if(!saved) return null;
-  const {data,error}=await cloud.database.from("app_users").select("*").eq("id",saved.id).maybeSingle();
-  // 网络/服务异常时返回 undefined（保留登录态，下次刷新重试）；只有账号确实不存在或被禁用才清除
-  if(error) return undefined;
-  if(!data||data.status!=="active"){ localStorage.removeItem("ps_user"); return null; }
-  return data;
+  const token=getToken();
+  if(!token) return null;
+  let res;
+  try{ res=await rpc("ps_me",{p_token:token}); }
+  catch(e){ return undefined; }               // 云端暂时不可用：保留登录态，下次刷新重试
+  if(!res.ok){
+    if(res.error==="token_expired"){ setToken(""); return null; }
+    return undefined;
+  }
+  return Object.assign({},res.user,{token});
 }
 function setUser(u,opts){
   S.user=u;
+  if(u&&u.token) setToken(u.token);
   // 本地只保存定位用的最小信息：不落 pass_hash / 邮箱 / 手机号等敏感字段
   if(u) localStorage.setItem("ps_user",JSON.stringify({id:u.id,username:u.username}));
-  else if(!(opts&&opts.keepSession)) localStorage.removeItem("ps_user");
+  else if(!(opts&&opts.keepSession)){ setToken(""); localStorage.removeItem("ps_user"); }
   renderUserBox();
   const adminTab=$(".tab[data-page=admin]");
   if(adminTab) adminTab.style.display=(u&&u.role==="admin")?"":"none";
   syncOwnerLecturesEntry();
 }
 async function login(username,password){
-  const {data,error}=await cloud.database.from("app_users").select("*").eq("username",username).maybeSingle();
-  if(error) throw new Error("连接失败，请稍后重试");
-  if(!data) throw new Error("账号或密码错误");
-  const h=await passHash(username,password);
-  if(h!==data.pass_hash) throw new Error("账号或密码错误");
-  // 先验密码再看账号状态，避免未登录者探测某个账号是否存在
-  if(data.status!=="active") throw new Error(data.status==="pending"?"账号尚在审核中，请等待管理员通过":"账号已被拒绝，请联系管理员");
-  if(data.muted) toast("注意：你的账号当前处于禁言状态");
+  const res=await rpc("ps_login",{p_username:username,p_password:password});
+  if(!res.ok) throw new Error(errMsg(res.error));
+  setToken(res.token);
+  const me=await rpc("ps_me",{p_token:res.token});
+  if(!me.ok){ setToken(""); throw new Error(errMsg(me.error)); }
+  const u=Object.assign({},me.user,{token:res.token});
   await loadLectureAccess();
-  setUser(data);
-  toast("欢迎回来，"+ (data.nickname||data.username));
-  return data;
+  setUser(u);
+  if(u.muted) toast("注意：你的账号当前处于禁言状态");
+  toast("欢迎回来，"+ (u.nickname||u.username));
+  return u;
 }
 async function register(f){
   if(!f.username||!f.password) throw new Error("请填写账号和密码");
   if(!/^[A-Za-z0-9_]{3,20}$/.test(f.username)) throw new Error("账号需为3-20位字母、数字或下划线");
-  if(f.birthday && new Date(f.birthday) > new Date()) throw new Error("生日不能是未来日期");
-  if(nicknameTaken(f.nickname||f.username)) throw new Error("该昵称已被使用");
-  const {data:dup}=await cloud.database.from("app_users").select("id").eq("username",f.username).maybeSingle();
-  if(dup) throw new Error("该账号已被使用");
-  // 注册时还没有用户列表，直接查库保证昵称唯一（不区分大小写，且不能与别人账号同名）
-  const n=String(f.nickname||f.username).trim().toLocaleLowerCase();
-  const {data:allUsers}=await cloud.database.from("app_users").select("username,nickname");
-  if((allUsers||[]).some(u=>String(u.username).toLocaleLowerCase()===n||String(u.nickname||"").trim().toLocaleLowerCase()===n)) throw new Error("该昵称已被使用");
-  const h=await passHash(f.username,f.password);
-  const {error}=await cloud.database.from("app_users").insert({
-    username:f.username,pass_hash:h,role:"user",status:"pending",
-    nickname:f.nickname||f.username,birthday:f.birthday||null,birthday_changed_at:f.birthday?new Date().toISOString():null,
-    gender:f.gender||null,avatar_url:f.avatar_url||null,email:f.email||null,phone:f.phone||null
+  const res=await rpc("ps_register",{
+    p_username:f.username,p_password:f.password,p_nickname:f.nickname||f.username,
+    p_birthday:f.birthday||null,p_gender:f.gender||null,p_email:f.email||null,p_phone:f.phone||null
   });
-  if(error) throw new Error(/nickname_unique|duplicate key/i.test(String(error.message||""))?"该昵称已被使用":"注册失败："+error.message);
+  if(!res.ok) throw new Error(errMsg(res.error));
   toast("注册成功，请等待管理员审核");
 }
 
@@ -549,7 +561,7 @@ function renderUserBox(){
     if($("#btnLectureAccess")) $("#btnLectureAccess").onclick=showLectureAccessManager;
     $("#btnMusic").onclick=()=>{const on=AUDIO.toggleMusic();$("#btnMusic").textContent=on?"🎵":"🔇";toast(on?"背景音乐已开启":"背景音乐已关闭（按键音效不受影响）");};
     $("#btnSfx").onclick=()=>{const on=SFX.toggle();$("#btnSfx").textContent=on?"🔊":"🔇";toast(on?"按键音效已开启":"按键音效已关闭");};
-    $("#btnLogout").onclick=()=>{battleEpoch++;stopLevelTimer();stopChat();AUDIO.stopAll();AUDIO.hideDock();setUser(null);S.storyBattle=null;S.battle=null;S.storyProgress={};S.progress={};showLogin();toast("已退出登录");};
+    $("#btnLogout").onclick=()=>{const tk=getToken();if(tk)rpc("ps_logout",{p_token:tk}).catch(()=>{});battleEpoch++;stopLevelTimer();stopChat();AUDIO.stopAll();AUDIO.hideDock();setUser(null);S.storyBattle=null;S.battle=null;S.storyProgress={};S.progress={};showLogin();toast("已退出登录");};
   }
 }
 
@@ -1457,32 +1469,26 @@ function pointsRuleText(score){
   if(score>=60)return "60 分及以上 → +8 积分";
   return "低于 60 分 → 不计分、不能通关";
 }
-async function awardPoints(delta){
+async function awardPoints(delta,levelKey){
   if(!S.user||!Number(delta))return 0;
-  const uid=S.user.id;
-  return withPointsLock(async()=>{
-    for(let attempt=0;attempt<3;attempt++){
-      try{
-        // 先读云端最新值再累加，避免旧缓存覆盖已有积分
-        const fresh=await cloud.database.from("app_users").select("id,points").eq("id",uid).maybeSingle();
-        if(fresh.error) throw new Error(fresh.error.message||"读取积分失败");
-        const base=Math.max(0,Number(fresh.data&&fresh.data.points)||0);
-        const next=Math.max(0,base+Number(delta));
-        const {error}=await cloud.database.from("app_users").update({points:next}).eq("id",uid);
-        if(error) throw new Error(error.message||"保存积分失败");
-        S.user.points=next;
-        localStorage.setItem("ps_user",JSON.stringify(S.user));
-        const cached=(S.users||[]).find(u=>u.username===S.user.username);
-        if(cached)cached.points=next;
-        renderUserBox();
-        renderLeaderboard();
-        return Number(delta);
-      }catch(e){
-        if(attempt===2){toast("积分保存失败："+(e.message||"未知错误")+"。请刷新页面后重试，本关积分未记录。",true);return 0;}
-      }
+  try{
+    const res=await rpc("ps_award_points",{p_token:getToken(),p_level_key:levelKey||"",p_delta:Number(delta)});
+    if(!res.ok){
+      if(res.error==="already_awarded"){toast("本关今日已计分，本次不重复加分");return 0;}
+      if(res.error==="daily_cap"){toast("今日积分已达上限（200），明天再来");return 0;}
+      throw new Error(errMsg(res.error));
     }
+    const next=Number(res.points)||0;
+    S.user.points=next;
+    const cached=(S.users||[]).find(u=>u.username===S.user.username);
+    if(cached)cached.points=next;
+    renderUserBox();
+    renderLeaderboard();
+    return Number(delta);
+  }catch(e){
+    toast("积分保存失败："+(e.message||"未知错误")+"。请刷新页面后重试，本关积分未记录。",true);
     return 0;
-  });
+  }
 }
 function calcScore(b){
   const studyNeed=b.studyRequired||MIN_STUDY_SEC;
@@ -1685,7 +1691,7 @@ async function storyWinLevel(){
   const sc=calcScore(b);
   if(sc.score<60){failLevel(`本次得分 ${sc.score} 分，低于 60 分不能通关，也不获得积分。请重新挑战。`,b);return;}
   SFX.play("levelup");AUDIO.settleThenResume();
-  const gained=await awardPoints(pointsForScore(sc.score));
+  const gained=await awardPoints(pointsForScore(sc.score),"story:"+S.storyDir+":"+b.level);
   const p=S.storyProgress[S.storyDir]||{level:1,cleared:0,total_correct:0};
   p.cleared=Math.max(p.cleared,b.level);p.level=Math.min(b.level+1,d.levels.length);p.total_correct+=b.correctThisLevel;
   p.best_score=Math.max(p.best_score||0,sc.score);
@@ -1912,7 +1918,7 @@ async function wordWinLevel(){
   const sc=calcScore(b);
   if(sc.score<60){failLevel(`本次得分 ${sc.score} 分，低于 60 分不能通关，也不获得积分。请重新挑战。`,b);return;}
   SFX.play("levelup");AUDIO.settleThenResume();
-  const gained=await awardPoints(pointsForScore(sc.score));
+  const gained=await awardPoints(pointsForScore(sc.score),"word:"+S.gameDir+":"+b.level);
   const p=S.progress[S.gameDir]||{level:1,cleared:0,total_correct:0};
   p.cleared=Math.max(p.cleared,b.level);p.level=Math.min(b.level+1,d.levels.length);p.total_correct+=b.correctThisLevel;
   p.best_score=Math.max(p.best_score||0,sc.score);
@@ -2016,22 +2022,19 @@ function renderProfile(main){
   bindBdayDays("fBirthday");
   $("#saveProfile").onclick=async()=>{
     const newNick=$("#fNickname").value.trim();
-    if(nicknameTaken(newNick,S.user.username)){toast("该昵称已被使用",true);return;}
-    const patch={nickname:newNick,gender:$("#fGender").value||null,email:$("#fEmail").value.trim()||null,phone:$("#fPhone").value.trim()||null};
+    if(!newNick){toast("昵称不能为空",true);return;}
     const newBday=readBdaySelects("fBirthday");
     if(newBday===null){toast("生日请选择完整的年、月、日，或全部留空",true);return;}
-    const bdayChanged=(newBday||"")!==(u.birthday||"");
-    if(newBday){
-      if(!isAdmin&&!birthdayStatus(u).can){toast("生日每 "+BIRTHDAY_YEARS+" 年仅可修改一次",true);return;}
-      if(new Date(newBday)>new Date()){toast("生日不能是未来日期",true);return;}
-      if(bdayChanged){patch.birthday=newBday;patch.birthday_changed_at=new Date().toISOString();}
-    }else if(u.birthday){ /* 清空生日 */
-      if(!isAdmin&&!birthdayStatus(u).can){toast("生日每 "+BIRTHDAY_YEARS+" 年仅可修改一次",true);return;}
-      patch.birthday=null;patch.birthday_changed_at=new Date().toISOString();
-    }
-    const{data,error}=await cloud.database.from("app_users").update(patch).eq("id",S.user.id).select();
-    if(error||!data||!data.length){toast(/nickname_unique|duplicate key/i.test(String((error||{}).message||""))?"该昵称已被使用":"保存失败",true);return;}
-    setUser(data[0]);toast("资料已保存");renderProfile(main);
+    if(newBday&&new Date(newBday)>new Date()){toast("生日不能是未来日期",true);return;}
+    try{
+      const res=await rpc("ps_update_profile",{
+        p_token:getToken(),p_nickname:newNick,p_gender:$("#fGender").value||null,
+        p_email:$("#fEmail").value.trim()||null,p_phone:$("#fPhone").value.trim()||null,p_birthday:newBday||null
+      });
+      if(!res.ok) throw new Error(errMsg(res.error));
+      setUser(Object.assign({},res.user,{token:getToken()}));
+      toast("资料已保存");renderProfile(main);
+    }catch(e){toast(e.message||"保存失败",true);}
   };
   $("#changePwd").onclick=showChangePwd;
 }
@@ -2039,9 +2042,13 @@ async function changeAvatar(){
   const inp=document.createElement("input");inp.type="file";inp.accept="image/*";
   inp.onchange=async()=>{const f=inp.files[0];if(!f)return;if(f.size>3*1024*1024){toast("图片请小于 3MB",true);return;}
     const reader=new FileReader();reader.onload=async()=>{
-      const{data,error}=await cloud.database.from("app_users").update({avatar_url:reader.result}).eq("id",S.user.id).select();
-      if(error||!data||!data.length){toast("上传失败",true);return;}
-      setUser(data[0]);toast("头像已更新");renderProfile($("#main"));};reader.readAsDataURL(f);};
+      try{
+        const res=await rpc("ps_set_avatar",{p_token:getToken(),p_avatar_url:reader.result});
+        if(!res.ok){toast(errMsg(res.error),true);return;}
+        S.user.avatar_url=res.avatar_url;setUser(Object.assign({},S.user));
+        toast("头像已更新");renderProfile($("#main"));
+      }catch(e){toast("上传失败："+e.message,true);}
+    };reader.readAsDataURL(f);};
   inp.click();
 }
 function showChangePwd(){
@@ -2052,10 +2059,11 @@ function showChangePwd(){
     </div><div class="modal-actions"><button class="btn primary" id="doPwd">确认修改</button></div></div>`,true);
   $(".modal-close").onclick=closeModal;
   $("#doPwd").onclick=async()=>{try{
-    const h=await passHash(S.user.username,$("#oldPwd").value);if(h!==S.user.pass_hash)throw new Error("当前密码错误");
-    const nh=await passHash(S.user.username,$("#newPwd").value);
-    const{error}=await cloud.database.from("app_users").update({pass_hash:nh}).eq("id",S.user.id);if(error)throw new Error(error.message);
-    setUser(Object.assign({},S.user,{pass_hash:nh}));closeModal();toast("密码已修改");}catch(e){toast(e.message,true);}};
+    const res=await rpc("ps_change_password",{p_token:getToken(),p_old_password:$("#oldPwd").value,p_new_password:$("#newPwd").value});
+    if(!res.ok) throw new Error(errMsg(res.error));
+    closeModal();toast("密码已修改，请重新登录");
+    setUser(null);showLogin();
+  }catch(e){toast(e.message,true);}};
 }
 
 /* ============================================================
@@ -2064,12 +2072,17 @@ function showChangePwd(){
 async function renderAdmin(main){
   const seq=++adminRenderSeq;
   main.innerHTML='<div class="card"><div class="empty">正在加载用户数据…</div></div>';
-  // 只取管理面板需要的字段：不再把 pass_hash 拉进前端内存
-  const{data:users,error}=await cloud.database.from("app_users")
-    .select("id,username,nickname,role,status,muted,points,birthday,birthday_changed_at,created_at,email,phone,gender")
-    .order("created_at",{ascending:false});
-  if(seq!==adminRenderSeq||S.page!=="admin")return;  // 已切走则放弃渲染
-  if(error){main.innerHTML='<div class="card empty">加载失败：'+esc(error.message)+'</div>';return;}
+  // 4 列 PII 已在服务端 REVOKE，管理列表改走 RPC（身份由 token→role 判定）
+  let users=[];
+  try{
+    const res=await rpc("ps_admin_list_users",{p_admin_token:getToken()});
+    if(seq!==adminRenderSeq||S.page!=="admin")return;  // 已切走则放弃渲染
+    if(!res.ok){main.innerHTML='<div class="card empty">加载失败：'+esc(errMsg(res.error))+'</div>';return;}
+    users=(res.users||[]).slice().sort((a,b)=>String(b.created_at||"").localeCompare(String(a.created_at||"")));
+  }catch(e){
+    if(seq!==adminRenderSeq||S.page!=="admin")return;
+    main.innerHTML='<div class="card empty">加载失败：'+esc(e.message||"网络异常")+'</div>';return;
+  }
   const{data:settings}=await cloud.database.from("app_settings").select("*");
   if(seq!==adminRenderSeq||S.page!=="admin")return;  // 已切走则放弃渲染
   const tm=(settings||[]).find(s=>s.key==="team_max_size");if(tm)S.teamMax=parseInt(tm.value)||4;
@@ -2129,10 +2142,17 @@ function bindAdmin(main,users){
   $$("[data-role]").forEach(b=>b.onclick=async()=>{const id=+b.dataset.role,nr=b.dataset.r==="admin"?"user":"admin";
     const target=(users||[]).find(u=>u.id===id);
     if(target&&isSafehouseOwner(target)){toast("屋主的管理员权限不可修改",true);return;}
-    await cloud.database.from("app_users").update({role:nr}).eq("id",id);toast(nr==="admin"?"已授予管理员权限":"已取消管理员权限");renderAdmin(main);});
+    try{
+      const res=await rpc("ps_admin_set_role",{p_admin_token:getToken(),p_id:id,p_role:nr});
+      if(!res.ok) throw new Error(errMsg(res.error));
+      toast(nr==="admin"?"已授予管理员权限":"已取消管理员权限");renderAdmin(main);
+    }catch(e){toast(e.message,true);}});
   $$("[data-adj-points]").forEach(b=>b.onclick=()=>openPointsAdjuster(+b.dataset.adjPoints,b.dataset.uname,Number(b.dataset.pts)||0,main));
   $$("[data-mute]").forEach(b=>b.onclick=async()=>{const id=+b.dataset.mute,m=b.dataset.m==="1";
-    await cloud.database.from("app_users").update({muted:m}).eq("id",id);
+    try{
+      const res=await rpc("ps_admin_set_muted",{p_admin_token:getToken(),p_id:id,p_muted:m});
+      if(!res.ok) throw new Error(errMsg(res.error));
+    }catch(e){toast(e.message,true);return;}
     await cloud.database.from("chat_messages").insert({channel:"system",room:"",sender:"admin",content:m?'系统公告：某成员已被禁言':'系统公告：某成员已被解除禁言',kind:"system"}).catch(()=>{});
     toast(m?"已禁言":"已解除禁言");renderAdmin(main);});
   $$("[data-edit-bday]").forEach(b=>b.onclick=()=>{
@@ -2147,23 +2167,31 @@ function bindAdmin(main,users){
       const val=readBdaySelects("admBirth");
       if(val===null){toast("请选择完整的年、月、日，或点「清空生日」",true);return;}
       if(val&&new Date(val)>new Date()){toast("生日不能是未来日期",true);return;}
-      const{error}=await cloud.database.from("app_users").update({birthday:val||null,birthday_changed_at:val?new Date().toISOString():null}).eq("id",id);
-      if(error){toast("保存失败："+error.message,true);return;}
+      try{
+        const res=await rpc("ps_admin_set_birthday",{p_admin_token:getToken(),p_id:id,p_birthday:val||null});
+        if(!res.ok) throw new Error(errMsg(res.error));
+      }catch(e){toast("保存失败："+e.message,true);return;}
       // 若改的是当前登录用户，同步本地登录态
-      if(S.user&&S.user.id===id){const{data}=await cloud.database.from("app_users").select("*").eq("id",id).maybeSingle();if(data)setUser(data);}
+      if(S.user&&S.user.id===id){try{const me=await rpc("ps_me",{p_token:getToken()});if(me.ok)setUser(Object.assign({},me.user,{token:getToken()}));}catch(e){}}
       closeModal();toast(val?"已修改「"+uname+"」的生日":"已清空「"+uname+"」的生日");renderAdmin(main);
     };
   });
   $("#saveTeamSize").onclick=async()=>{const v=parseInt($("#teamSize").value);if(!v||v<1||v>20){toast("请输入 1-20",true);return;}
-    await cloud.database.from("app_settings").update({value:String(v),updated_at:new Date().toISOString()}).eq("key","team_max_size");
-    S.teamMax=v;toast("组队人数已保存为 "+v+" 人");};
+    try{
+      const res=await rpc("ps_admin_set_team_size",{p_admin_token:getToken(),p_value:v});
+      if(!res.ok) throw new Error(errMsg(res.error));
+      S.teamMax=v;toast("组队人数已保存为 "+v+" 人");
+    }catch(e){toast(e.message,true);}};
   $("#doReset").onclick=async()=>{try{const un=$("#resetUser").value.trim(),pw=$("#resetPwd").value;
     if(!un||!pw)throw new Error("请填写账号和新密码");
-    const{data:u}=await cloud.database.from("app_users").select("id").eq("username",un).maybeSingle();if(!u)throw new Error("账号不存在");
-    const h=await passHash(un,pw);await cloud.database.from("app_users").update({pass_hash:h,status:"active"}).eq("id",u.id);
+    const res=await rpc("ps_admin_reset_password",{p_admin_token:getToken(),p_target_username:un,p_new_password:pw});
+    if(!res.ok) throw new Error(errMsg(res.error));
     toast("已为 "+un+" 重置密码");$("#resetPwd").value="";}catch(e){toast(e.message,true);}};
 }
-async function setStatus(id,status){await cloud.database.from("app_users").update({status}).eq("id",id);}
+async function setStatus(id,status){
+  const res=await rpc("ps_admin_set_status",{p_admin_token:getToken(),p_id:id,p_status:status});
+  if(!res.ok) throw new Error(errMsg(res.error));
+}
 
 /* 管理员手动增减指定用户积分（可加可减，结果不低于 0），可定向发布告知公告 */
 function openPointsAdjuster(id,uname,cur,main){
@@ -2193,22 +2221,14 @@ function openPointsAdjuster(id,uname,cur,main){
   $("#ptsApply").onclick=async()=>{
     const delta=parseInt($("#ptsDelta").value,10);
     if(!Number.isFinite(delta)||delta===0){toast("请输入非零整数",true);return;}
-    // 串行锁内重读最新积分再累加，避免覆盖用户刚获得的积分
-    const result=await withPointsLock(async()=>{
-      try{
-        const fresh=await cloud.database.from("app_users").select("points").eq("id",id).maybeSingle();
-        if(fresh.error) throw new Error(fresh.error.message||"读取积分失败");
-        const base=Math.max(0,Number(fresh.data&&fresh.data.points)||0);
-        const next=Math.max(0,base+delta);
-        const {error}=await cloud.database.from("app_users").update({points:next}).eq("id",id);
-        if(error) throw new Error(error.message||"保存积分失败");
-        return {ok:true,next};
-      }catch(e){ return {ok:false,err:e.message||"未知错误"}; }
-    });
-    if(!result.ok){toast("调整失败："+(result.err||"未知错误"),true);return;}
-    const next=result.next;
+    let next=0;
+    try{
+      const res=await rpc("ps_admin_adjust_points",{p_admin_token:getToken(),p_id:id,p_delta:delta});
+      if(!res.ok) throw new Error(errMsg(res.error));
+      next=Number(res.points)||0;
+    }catch(e){toast("调整失败："+(e.message||"未知错误"),true);return;}
     const cached=(S.users||[]).find(u=>u.id===id);if(cached)cached.points=next;
-    if(S.user&&S.user.id===id){S.user.points=next;localStorage.setItem("ps_user",JSON.stringify(S.user));renderUserBox();}
+    if(S.user&&S.user.id===id){S.user.points=next;localStorage.setItem("ps_user",JSON.stringify({id:S.user.id,username:S.user.username}));renderUserBox();}
     // 定向告知公告
     if($("#ptsAnnounce").checked){
       const scope=$("#ptsAnnScope").value;

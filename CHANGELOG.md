@@ -10,7 +10,7 @@
 ## 凡例
 
 1. **版本命名**：形如 `v20261124e`，前缀 `20261124` 为该轮开发批次的起始日期（批次号），末尾字母 `a / b / c …` 为批次内的第几次改编。故后期在 11 月 27 日提交的 `v20261124d/e` 仍沿用 `20261124` 前缀——此为批次号，非当日日期，特此说明，免生疑义。
-2. **版本号落点**：自 v20261124f 起共 7 处——`index.html` 中 6 处静态资源引用（`favicon.png` / `styles.css` / `data.js` / `audio.js` / `gate.js` / `app.js`）的 `?v=` 查询串，以及顶栏可见徽章 `#verBadge`（v20261124e 及之前为 6 处，f 版新增 favicon 引用后为 7 处）。每次改编均全局同步，避免浏览器缓存导致新旧混用。
+2. **版本号落点**：共 7 处——`index.html` 中 6 处静态资源引用（`favicon.png` / `styles.css` / `data.js` / `audio.js` / `gate.js` / `app.js`）的 `?v=` 查询串，以及顶栏可见徽章 `#verBadge`。每次改编均全局同步，避免浏览器缓存导致新旧混用。
 3. **三方对齐**：每次发布后，「线上发布站 / 本地代码 / GitHub 仓库」三方的版本号与提交号须完全一致。
 4. **留痕范围**：本志只记有据可查的改编；纯测试脚本与约定的调整记于「卷三・制度沿革」。
 
@@ -25,9 +25,10 @@
 | **v20261124c** | 2026-11-24 | `02dcecd` | 讲义中心改为站内内嵌，不再跳转新窗口 | 10 项 e2e 通过 | 已上线（补推） |
 | **v20261124d** | 2026-11-27 | `28b9e7d` | 公告撤回去掉 confirm，点击即撤 | 回归 24/24 | 已上线 |
 | **v20261124e** | 2026-11-27 | `d10d8e4` | 公告撤回改为软删除并记录撤回时间 | 回归 24/24 | 已上线 |
-| **v20261124f** | 2026-11-28 | 待提交 | 上线体检后的修复：Boss 血量判定、断网保登录、云请求超时、词库清洗、favicon | jsdom 全流程 0 异常 | 待发布 |
+| **v20261124f** | 2026-11-28 | `471f821` | 上线体检后的修复：Boss 血量判定、断网保登录、云请求超时、词库清洗、favicon | jsdom 全流程 0 异常 | 未发布（P0 下线） |
+| **v20261128a** | 2026-11-28 | 本次提交 | P0 前端改造：登录/注册/改密/资料/积分/管理员全部改走 RPC，删除客户端哈希 | jsdom RPC 冒烟 0 异常、`node --check` 通过 | 已发布（P0 数据库同步落地） |
 
-> 当前本地版本：**v20261124f**（尚未发布）。因 P0 数据库权限漏洞（匿名可读 `pass_hash`、匿名可写），站点已下线止血，线上暂时不可用，待权限修复后再上线。提交号随每次提交递增，以 `git log -1` 与 `git ls-remote origin refs/heads/main` 的实时结果为准，不在此写死以免失真。
+> 当前状态：P0 数据库已实施（3 表 + 17 RPC + 权限收紧），本地/GitHub 于本次提交对齐 `v20261128a`，线上已重新发布、sharecode 不变。提交号以 `git log -1` 与 `git ls-remote origin refs/heads/main` 的实时结果为准，不在此写死以免失真。网关此前因下架返回 403，不能作为权限验收依据；三条验收以联调脚本实测为准。
 
 ---
 
@@ -147,6 +148,27 @@
 **未处理（需服务端/平台侧解决）**：云数据库对持有 publishable key 的匿名请求开放读写，`app_users.pass_hash` 可被匿名读取。前端无法修复，须在 WorkBuddy 后台配置行级权限或迁移到服务端接口。详见体检报告。
 
 **验证**：`node --check` 全通过；jsdom 冒烟（首页/术语/故事/单词/资料/管理 6 页）+ 故事 22 题连续作答 + 单词 3 题，JS 异常 0；数据校验脏词条 0、脏释义 0。
+
+---
+
+### v20261128a · P0 安全修复前端改造（对接 RPC 契约 v3） · 2026-11-28
+
+**缘由**：P0 验收要求匿名读不到 `pass_hash`/`email`/`phone`/`birthday`、匿名写不进 `app_users`/`app_settings`；前端原先直读密码哈希、直写用户表，必须与数据库收紧同批改造。
+
+**契约依据**：`P0-RPC契约定稿.md` v3（17 个 RPC、`ps_sessions` 会话令牌、bcrypt + 旧哈希迁移）。
+
+**改编详情**（`app.js`）：
+- 删除客户端 `sha256()` / `passHash()` 与常量盐；新增 `ps_token` 存取、`ERR_ZH` 错误码表、`rpc()` 封装（含 `token_expired` 自动清登录态）。
+- `loadUser()` 改为 `ps_me(p_token)`：失效清 token，网络错误保留登录态；`setUser()` 仅在 `u.token` 存在时写 `ps_token`。
+- `login()` → `ps_login` + `ps_me`；`register()` → `ps_register`（删除前端查重与插入）；`showChangePwd()` → `ps_change_password`（成功后强制重登）。
+- `awardPoints(delta, levelKey)` → `ps_award_points`，关卡键 `story:<方向>:<关>` / `word:<方向>:<关>`；处理 `already_awarded` / `daily_cap`。
+- 资料保存 → `ps_update_profile`（不再传生日时间戳）；头像 → `ps_set_avatar`。
+- 管理面板：列表 → `ps_admin_list_users`；审核 → `ps_admin_set_status`；角色/禁言/生日/调分/组队上限/重置密码 → 对应 `ps_admin_*`。
+- 讲义名单保存 → `ps_set_lecture_access`；退出登录补 `ps_logout`。
+
+**验证**：`node --check` 通过；jsdom 模拟 RPC 测试：登录 → 首页 → 管理列表 → 资料保存 → 退出（调用序列 `ps_login/ps_me/ps_admin_list_users/ps_update_profile/ps_admin_list_users/ps_logout`，0 异常）；仅带 `ps_token` 启动可自动登录（`ps_me`）。
+
+**未完成**：数据库 17 个 RPC、3 张表、REVOKE/GRANT 由 WorkBuddy 在用户签字后执行；联调通过前站点保持下线。
 
 ---
 
