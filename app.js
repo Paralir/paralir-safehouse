@@ -529,11 +529,13 @@ async function saveProgress(prefix,dir){
   if(!S.user) return;
   const store=prefix==="story"?S.storyProgress:S.progress;
   const p=store[dir]; if(!p) return;
-  const direction=prefix+":"+dir;
-  const row={level:p.level,cleared:p.cleared,total_correct:p.total_correct,updated_at:new Date().toISOString()};
-  const existing=await cloud.database.from("game_progress").select("id").eq("owner_id",S.user.username).eq("direction",direction).maybeSingle();
-  if(existing.data) await cloud.database.from("game_progress").update(row).eq("id",existing.data.id);
-  else await cloud.database.from("game_progress").insert(Object.assign({owner_id:S.user.username,direction},row));
+  try{
+    const res=await rpc("ps_progress_save",{p_token:getToken(),p_direction:prefix+":"+dir,
+      p_level:p.level,p_cleared:p.cleared,p_total_correct:p.total_correct});
+    if(!res.ok)throw new Error(errMsg(res.error));
+  }catch(e){
+    toast("进度保存失败："+(e.message||"未知错误"),true);
+  }
 }
 async function loadSettings(){
   const {data}=await cloud.database.from("app_settings").select("*");
@@ -668,13 +670,6 @@ async function loadFriends(){const{data}=await cloud.database.from("friends").se
 // 私聊过的对象（含非好友）记在本机，方便从侧栏直接回到会话
 function loadDmPeers(){try{S.dmPeers=JSON.parse(localStorage.getItem("ps_dm_peers")||"[]").filter(x=>typeof x==="string"&&x&&x!==(S.user&&S.user.username));}catch(e){S.dmPeers=[];}}
 function rememberDmPeer(u){if(!u||u===S.user.username)return;if(!S.dmPeers.includes(u)){S.dmPeers.push(u);try{localStorage.setItem("ps_dm_peers",JSON.stringify(S.dmPeers));}catch(e){}}}
-// 建立双方好友关系：已存在记录则更新为 active，不存在才插入，避开 UNIQUE(owner,friend) 冲突
-async function setFriendActive(owner,friend){
-  const{data:exist}=await cloud.database.from("friends").select("id").eq("owner",owner).eq("friend",friend).maybeSingle();
-  if(exist){ await cloud.database.from("friends").update({status:"active"}).eq("id",exist.id); }
-  else{ await cloud.database.from("friends").insert({owner,friend,status:"active"}); }
-}
-async function establishFriendship(a,b){ await setFriendActive(a,b); await setFriendActive(b,a); }
 async function loadGroups(){
   const{data}=await cloud.database.from("chat_groups").select("*");
   S.groups=(data||[]).filter(g=>{try{return JSON.parse(g.members||"[]").includes(S.user.username);}catch(e){return false;}});
@@ -715,7 +710,7 @@ function renderSide(tab){
     const pending=S.friends.filter(f=>f.status==="pending"&&f.friend!==S.user.username);
     body.innerHTML=`<div class="cs-group-title">我的好友（${active.length}）</div>
       ${active.map(f=>`<div class="friend-item"><span class="ci-ico">🧑</span><span class="fi-name">${esc(nickOf(f.friend))}</span>
-        <button class="fi-chat" data-fchat="${esc(f.friend)}">私聊</button><button class="fi-del" data-fdel="${f.id}">✕</button></div>`).join("")||'<div class="cs-hint">还没有好友</div>'}
+        ${(S.user.role==="admin"||isSafehouseOwner())?`<button class="fi-chat" data-fchat="${esc(f.friend)}">私聊</button>`:''}<button class="fi-del" data-fdel="${f.id}">✕</button></div>`).join("")||'<div class="cs-hint">还没有好友</div>'}
       ${pending.length?`<div class="cs-group-title">等待对方确认（${pending.length}）</div>`+pending.map(f=>`<div class="friend-item"><span class="ci-ico">⏳</span><span class="fi-name">已向 ${esc(nickOf(f.friend))} 发出申请</span>
         <button class="fi-del" data-frej="${f.id}" title="撤回申请">✕ 撤回</button></div>`).join(""):""}
       <button class="btn sm" id="addFriend2" style="margin-top:10px;width:100%">＋ 添加好友</button>
@@ -723,8 +718,8 @@ function renderSide(tab){
     $("#addFriend2").onclick=showAddFriend;
     if($("#adminDm2"))$("#adminDm2").onclick=showAdminDM;
     $$("[data-fchat]").forEach(b=>b.onclick=()=>openDM(b.dataset.fchat));
-    $$("[data-fdel]").forEach(b=>b.onclick=async()=>{await cloud.database.from("friends").delete().eq("id",+b.dataset.fdel);toast("已删除好友");loadFriends();renderSide("friends");});
-    $$("[data-frej]").forEach(b=>b.onclick=async()=>{await cloud.database.from("friends").delete().eq("id",+b.dataset.frej);toast("已撤回申请");loadFriends();renderSide("friends");});
+    $$("[data-fdel]").forEach(b=>b.onclick=async()=>{try{const r=await rpc("ps_friend_remove",{p_token:getToken(),p_id:+b.dataset.fdel});if(!r.ok){toast(errMsg(r.error),true);return;}}catch(e){toast(e.message,true);return;}toast("已删除好友");loadFriends();renderSide("friends");});
+    $$("[data-frej]").forEach(b=>b.onclick=async()=>{try{const r=await rpc("ps_friend_remove",{p_token:getToken(),p_id:+b.dataset.frej});if(!r.ok){toast(errMsg(r.error),true);return;}}catch(e){toast(e.message,true);return;}toast("已撤回申请");loadFriends();renderSide("friends");});
   }else if(tab==="invites"){
     body.innerHTML=`<div class="cs-group-title">收到的邀请（${S.invites.length}）</div>
       ${S.invites.map(v=>`<div class="invite-item"><div class="ii-type">${inviteIcon(v.type)} ${inviteLabel(v.type)}</div>
@@ -732,7 +727,7 @@ function renderSide(tab){
         <div class="ii-actions"><button class="btn sm primary" data-iacc="${v.id}" data-itype="${v.type}" data-iref="${esc(v.ref)}" data-ifrom="${esc(v.inviter)}">接受</button>
         <button class="btn sm" data-irej="${v.id}">忽略</button></div></div>`).join("")||'<div class="cs-hint">暂无邀请</div>'}`;
     $$("[data-iacc]").forEach(b=>b.onclick=()=>acceptInvite(+b.dataset.iacc,b.dataset.itype,b.dataset.iref,b.dataset.ifrom));
-    $$("[data-irej]").forEach(b=>b.onclick=async()=>{await cloud.database.from("invitations").update({status:"rejected"}).eq("id",+b.dataset.irej);toast("已忽略");loadInvites();renderSide("invites");updateInviteBadge();});
+    $$("[data-irej]").forEach(b=>b.onclick=async()=>{try{const r=await rpc("ps_invite_respond",{p_token:getToken(),p_id:+b.dataset.irej,p_accept:false});if(!r.ok){toast(errMsg(r.error),true);return;}}catch(e){toast(e.message,true);return;}toast("已忽略");loadInvites();renderSide("invites");updateInviteBadge();});
   }
 }
 function renderLeaderboard(){
@@ -778,19 +773,27 @@ function openAdminDMConsole(){
 function openWorld(){
   if(!$("#chatMain"))return;   // 已离开首页时忽略异步回调
   S.chatTab="world";S.chatRoom="";S.chatGroupId=null;S.chatPeer=null;S.chatMsgSig=null;S.chatRecallOpen=null;
-  const isAdmin=!!(S.user&&S.user.role==="admin");
+  const isAdmin=!!(S.user&&(S.user.role==="admin"||isSafehouseOwner()));
   $("#chatMain").innerHTML=chatHeader(`<div><div class="ch-title">🌐 世界频道</div><div class="ch-sub">所有安全屋成员都能看到你的消息</div></div>
-    ${isAdmin?'<button class="btn sm" id="btnAnnounce">📢 公告管理</button>':'<span class="ch-mute-tip">管理员可禁言违规成员</span>'}`)
+    <button class="btn sm" id="btnAnnounce">📢 ${isAdmin?'公告管理':'发公告'}</button>`)
     +'<div id="announceBar"></div>'+msgArea();
   if($("#btnAnnounce"))$("#btnAnnounce").onclick=showAnnounceManager;
   renderAnnounceBar();
   bindSend();startChatPolling();
   $$(".cs-item").forEach(x=>x.classList.remove("active-ch"));$("#chWorld")&&$("#chWorld").classList.add("active-ch");
 }
-function openDM(user){
+async function openDM(user){
+  if(!user||!S.user||user===S.user.username)return;
+  const isAdmin=!!(S.user.role==="admin"||isSafehouseOwner());
+  if(!isAdmin){
+    // 私聊是管理员权利：普通用户只能进入已有会话（回复管理员发起的私聊）
+    const room=dmRoom(S.user.username,user);
+    const{data}=await cloud.database.from("chat_messages").select("id").eq("room",room).limit(1);
+    if(!data||!data.length){toast("私聊仅管理员可发起",true);return;}
+  }
   S.chatTab="dm";S.chatRoom=dmRoom(S.user.username,user);S.chatGroupId=null;S.chatPeer=user;S.chatMsgSig=null;S.chatRecallOpen=null;
   rememberDmPeer(user);
-  const admin=!!(S.user&&S.user.role==="admin");
+  const admin=!!(S.user&&(S.user.role==="admin"||isSafehouseOwner()));
   $("#chatMain").innerHTML=chatHeader(`<div><div class="ch-title">💬 ${esc(nickOf(user))}</div><div class="ch-sub">私聊 · 仅你俩可见</div></div>${admin?adminDmSearchBar():''}`)+'<div id="announceBar"></div>'+msgArea();
   renderAnnounceBar();
   if(admin)bindAdminDmSearch();
@@ -816,9 +819,10 @@ function bindSend(){
     const inp=$("#msgText");if(!inp)return;const txt=inp.value.trim();if(!txt)return;
     if(S.user.muted){toast("你已被管理员禁言，无法发言",true);return;}
     inp.value="";
-    const row={channel:S.chatTab,room:S.chatRoom,sender:S.user.username,sender_name:S.user.nickname||S.user.username,content:txt,kind:"text"};
-    const{error}=await cloud.database.from("chat_messages").insert(row);
-    if(error){toast("发送失败",true);return;}
+    try{
+      const res=await rpc("ps_chat_send",{p_token:getToken(),p_channel:S.chatTab,p_room:S.chatRoom,p_content:txt});
+      if(!res.ok){inp.value=txt;toast(errMsg(res.error),true);return;}
+    }catch(e){inp.value=txt;toast("发送失败："+e.message,true);return;}
     SFX.play("send");refreshMessages();
   };
   $("#msgSend").onclick=send;
@@ -852,8 +856,8 @@ function stopChat(){if(S.chatTimer){clearInterval(S.chatTimer);S.chatTimer=null;
 const RECALL_WINDOW_MS=7*24*60*60*1000;  // 普通用户仅可撤回 7 天内的消息
 function canRecallMessage(m,user,now){
   if(!m||!user||m.kind==="system"||m.recalled)return false;
-  if(user.role==="admin")return true;                       // 管理员不受时间限制，也可撤回他人消息
-  if(m.sender!==user.username)return false;                 // 普通用户只能撤回自己的消息
+  if(isSafehouseOwner(user))return true;                    // 站主可撤回任何人的消息
+  if(m.sender!==user.username)return false;                 // 其他人只能撤回自己的消息
   const t=Date.parse(m.created_at||"");
   if(!isFinite(t))return false;
   const cur=now||Date.now();
@@ -864,9 +868,10 @@ async function recallMessage(id){
   if(!m||m.recalled)return;
   if(!canRecallMessage(m,S.user)){toast("没有权限撤回这条消息",true);return;}
   if(!confirm("确认撤回这条消息？撤回后所有人都将无法看到原文。"))return;
-  const{error}=await cloud.database.from("chat_messages")
-    .update({recalled:true,recalled_at:new Date().toISOString(),recalled_by:S.user.username}).eq("id",id);
-  if(error){toast("撤回失败："+error.message,true);return;}
+  try{
+    const res=await rpc("ps_chat_recall",{p_token:getToken(),p_id:id});
+    if(!res.ok){toast(errMsg(res.error),true);return;}
+  }catch(e){toast("撤回失败："+e.message,true);return;}
   SFX.play("cute");toast("消息已撤回");
   S.chatRecallOpen=null;
   await refreshMessages(true);
@@ -1019,7 +1024,9 @@ function showAnnounceManager(){
 }
 function renderAnnounceManageList(){
   const box=$("#annManageList");if(!box)return;
-  const list=S.announcements||[];
+  // 普通用户只看到自己发的；站主看到全部（可撤回任何人的）
+  const all=S.announcements||[];
+  const list=isSafehouseOwner()?all:all.filter(a=>a.author===S.user.username);
   if(!list.length){box.innerHTML='<div class="cs-hint" style="padding:16px">还没有公告，点右上角发布。</div>';return;}
   const placeLabel=p=>({world:"🌐 世界频道",group:"👥 群聊",dm:"💬 私聊"})[p||"world"]||p;
   box.innerHTML=list.map(a=>{
@@ -1034,22 +1041,24 @@ function renderAnnounceManageList(){
       <span class="ami-time">${fmtAnnTime(a.start_at)} → ${fmtAnnTime(a.end_at)}</span></div>
       <div class="ami-content">${esc(a.content)}</div>
       ${target?`<div class="ami-target">投放至：${esc(target)}</div>`:''}
+      ${isSafehouseOwner()&&a.author!==S.user.username?`<div class="ami-target">发布者：${esc(nickOf(a.author||""))}</div>`:''}
       ${a.active===false?`<div class="ami-target">🕒 撤回时间 ${fmtAnnTime(a.recalled_at)}${a.recalled_by?' · 操作人 '+esc(a.recalled_by):''}</div>`:''}
-      <div class="row-actions" style="margin-top:8px"><button class="btn sm" data-ann-edit="${a.id}">编辑</button>
-      ${a.active===false?'<span class="cs-hint" style="font-size:11px">已撤回</span>':`<button class="btn sm danger" data-ann-del="${a.id}">撤回</button>`}</div></div>`;
+      <div class="row-actions" style="margin-top:8px">
+      ${a.active===false?'<span class="cs-hint" style="font-size:11px">已撤回</span>':(a.author===S.user.username||isSafehouseOwner()?`<button class="btn sm danger" data-ann-del="${a.id}">撤回</button>`:'')}</div></div>`;
   }).join("");
-  $$("[data-ann-edit]").forEach(b=>b.onclick=()=>showAnnounceForm(S.announcements.find(x=>x.id===+b.dataset.annEdit)));
   $$("[data-ann-del]").forEach(b=>b.onclick=async()=>{
-    const a=S.announcements.find(x=>x.id===+b.dataset.annDel);
+    const a=(S.announcements||[]).find(x=>x.id===+b.dataset.annDel);
     if(!a||a.active===false)return;
-    // 软删除：记录撤回时间而不物理删除，便于留痕与核对
-    const{error}=await cloud.database.from("announcements")
-      .update({active:false,recalled_at:new Date().toISOString(),recalled_by:S.user&&S.user.username||""}).eq("id",a.id);
-    if(error){toast("撤回失败："+error.message,true);return;}
+    try{
+      const res=await rpc("ps_ann_recall",{p_token:getToken(),p_id:a.id});
+      if(!res.ok){toast(errMsg(res.error),true);return;}
+    }catch(e){toast("撤回失败："+e.message,true);return;}
     await loadAnnouncements();renderAnnounceBar();renderAnnounceManageList();toast("公告已撤回");
   });
 }
 function showAnnounceForm(a){
+  const canAdvanced=!!(S.user&&(S.user.role==="admin"||isSafehouseOwner()));
+  if(!canAdvanced)return showSimpleAnnounceForm();
   if(a)closeModal(); // 从管理列表进入编辑：先关再开会重置，但需保留管理列表刷新
   const isEdit=!!a;
   const now=new Date(),end=new Date(now.getTime()+7*86400000);
@@ -1061,7 +1070,7 @@ function showAnnounceForm(a){
   const groupOpts=(S.groups||[]).map(g=>`<label class="ann-check"><input type="checkbox" class="ann-g" value="${esc(g.id)}" ${selGroups.map(String).includes(String(g.id))?'checked':''}> ${esc(g.name)}</label>`).join("");
   modal(`<div class="modal-head"><button class="modal-close">✕</button><h2>${isEdit?"编辑公告":"发布新公告"}</h2><p>设定时间范围与投放位置，公告会在对应界面持续显示</p></div>
     <div class="modal-body">
-    <div class="field"><label>公告内容</label><textarea id="annContent" rows="4" maxlength="500" placeholder="例如：本周六 20:00 全服 Boss 战，欢迎组队！">${esc(def.content)}</textarea></div>
+    <div class="field"><label>公告内容</label><textarea id="annContent" rows="4" maxlength="600" placeholder="例如：本周六 20:00 全服 Boss 战，欢迎组队！">${esc(def.content)}</textarea></div>
     <div class="field"><label>投放位置</label>
       <select id="annPlace">
         <option value="world" ${place==="world"?'selected':''}>🌐 世界频道公告条（全员或指定人群可见）</option>
@@ -1100,37 +1109,59 @@ function showAnnounceForm(a){
   $("#annAudience").onchange=e=>{$("#annAudNamesWrap").style.display=e.target.value==="named"?"":"none";};
   $("#annSave").onclick=async()=>{
     const content=$("#annContent").value.trim();
-    const start=$("#annStart").value,end=$("#annEnd").value;
     if(!content){toast("请输入公告内容",true);return;}
-    if(!start||!end){toast("请选择开始和结束时间",true);return;}
-    const startISO=new Date(start).toISOString(),endISO=new Date(end).toISOString();
-    if(new Date(endISO)<=new Date(startISO)){toast("结束时间必须晚于开始时间",true);return;}
+    if(content.length>600){toast("公告最多 600 字",true);return;}
+    const start=$("#annStart").value,end=$("#annEnd").value;
+    let days=7;
+    if(start&&end){const d=Math.ceil((new Date(end)-new Date(start))/86400000);if(d>0)days=Math.min(30,d);}
+    const args={p_token:getToken(),p_content:content,p_days:days};
     const place=$("#annPlace").value;
-    const row={content,start_at:startISO,end_at:endISO,active:true,placement:place};
     const splitNames=txt=>txt.split(/[\n,，;；\s]+/).filter(Boolean);
+    args.p_placement=place;
     if(place==="world"){
       const aud=$("#annAudience").value;
-      row.audience=aud;
+      args.p_audience=aud;
       if(aud==="named"){
         const names=splitNames($("#annAudNames").value);
         if(!names.length){toast("请填写至少一个可见账号",true);return;}
-        row.audience_names=JSON.stringify(names);
-      }else row.audience_names=null;
-      row.target_groups=null;row.target_users=null;row.target_user=null;
+        args.p_audience_names=JSON.stringify(names);
+      }
     }else if(place==="group"){
       const gids=$$(".ann-g:checked").map(c=>c.value);
       if(!gids.length){toast("请至少选择一个群聊",true);return;}
-      row.target_groups=JSON.stringify(gids);row.target_users=null;row.audience="all";row.audience_names=null;row.target_user=null;
+      args.p_audience="all";args.p_target_groups=JSON.stringify(gids);
     }else{
       const names=splitNames($("#annDmNames").value);
       if(!names.length){toast("请填写至少一个接收账号",true);return;}
-      row.target_users=JSON.stringify(names);row.target_groups=null;row.audience="all";row.audience_names=null;row.target_user=null;
+      args.p_audience="all";args.p_target_users=JSON.stringify(names);
     }
-    let error;
-    if(isEdit){({error}=await cloud.database.from("announcements").update(row).eq("id",a.id));}
-    else{row.author=S.user.username;row.created_at=new Date().toISOString();({error}=await cloud.database.from("announcements").insert(row));}
-    if(error){toast("保存失败："+error.message,true);return;}
-    await loadAnnouncements();renderAnnounceBar();showAnnounceManager();toast(isEdit?"公告已更新":"公告已发布");
+    try{
+      const res=await rpc("ps_ann_post",args);
+      if(!res.ok){toast(errMsg(res.error),true);return;}
+    }catch(e){toast("保存失败："+e.message,true);return;}
+    await loadAnnouncements();renderAnnounceBar();showAnnounceManager();toast("公告已发布");
+  };
+}
+function showSimpleAnnounceForm(){
+  modal(`<div class="modal-head"><button class="modal-close">✕</button><h2>📢 发布公告</h2><p>公告会显示在世界频道顶部，最多 600 字</p></div>
+    <div class="modal-body">
+      <div class="field"><label>公告内容</label><textarea id="annContent" rows="5" maxlength="600" placeholder="写点什么告诉大家…"></textarea></div>
+      <div class="field"><label>持续天数</label><input type="number" id="annDays" value="7" min="1" max="30"></div>
+      <div class="notice info">每人每天最多发布 3 条公告；发布后 7 天内可自行撤回。</div>
+      <div class="modal-actions"><button class="btn primary" id="annSave">发布公告</button>
+        <button class="btn ghost" id="annCancel">取消</button></div></div>`,true);
+  $(".modal-close").onclick=()=>showAnnounceManager();
+  $("#annCancel").onclick=()=>showAnnounceManager();
+  $("#annSave").onclick=async()=>{
+    const content=$("#annContent").value.trim();
+    const days=Math.max(1,Math.min(30,parseInt($("#annDays").value,10)||7));
+    if(!content){toast("请输入公告内容",true);return;}
+    if(content.length>600){toast("公告最多 600 字",true);return;}
+    try{
+      const res=await rpc("ps_ann_post",{p_token:getToken(),p_content:content,p_days:days});
+      if(!res.ok){toast(errMsg(res.error),true);return;}
+    }catch(e){toast("发布失败："+e.message,true);return;}
+    await loadAnnouncements();renderAnnounceBar();showAnnounceManager();toast("公告已发布");
   };
 }
 function showAdminDM(){
@@ -1152,8 +1183,10 @@ async function startAdminDM(to){
   if(!to||to===S.user.username)return;
   const known=(S.friends||[]).some(f=>f.status==="active"&&f.friend===to)||(S.dmPeers||[]).includes(to);
   if(!known){
-    const{error}=await cloud.database.from("invitations").insert({inviter:S.user.username,invitee:to,type:"dm",ref:S.user.username,content:"管理员邀请你私聊，可直接回复"});
-    if(error){toast("私聊邀请发送失败："+error.message,true);return;}
+    try{
+      const res=await rpc("ps_invite_create",{p_token:getToken(),p_invitee:to,p_type:"dm",p_ref:S.user.username,p_content:"管理员邀请你私聊，可直接回复"});
+      if(!res.ok){toast("私聊邀请发送失败："+errMsg(res.error),true);return;}
+    }catch(e){toast("私聊邀请发送失败："+e.message,true);return;}
   }
   openDM(to);
   toast("已打开与 "+nickOf(to)+" 的私聊");
@@ -1170,9 +1203,10 @@ function showAddFriend(){
     if(!S.users.find(u=>u.username===t)){toast("账号不存在或未激活",true);return;}
     const dup=S.friends.find(f=>f.friend===t);
     if(dup){toast(dup.status==="active"?"已是好友":"申请已发送",true);return;}
-    const{error}=await cloud.database.from("friends").insert({owner:S.user.username,friend:t,status:"pending"});
-    if(error){toast("发送失败",true);return;}
-    await cloud.database.from("invitations").insert({inviter:S.user.username,invitee:t,type:"friend",content:"想加你为好友"});
+    try{
+      const res=await rpc("ps_friend_request",{p_token:getToken(),p_username:t});
+      if(!res.ok){toast(errMsg(res.error),true);return;}
+    }catch(e){toast("发送失败："+e.message,true);return;}
     closeModal();toast("好友申请已发送");
   };
 }
@@ -1183,8 +1217,10 @@ function showCreateGroup(){
   $(".modal-close").onclick=closeModal;
   $("#doCreateG").onclick=async()=>{
     const name=$("#gName").value.trim();if(!name){toast("请输入群名",true);return;}
-    const{error}=await cloud.database.from("chat_groups").insert({name,owner:S.user.username,members:JSON.stringify([S.user.username])});
-    if(error){toast("创建失败",true);return;}
+    try{
+      const res=await rpc("ps_group_create",{p_token:getToken(),p_name:name});
+      if(!res.ok){toast(errMsg(res.error),true);return;}
+    }catch(e){toast("创建失败："+e.message,true);return;}
     closeModal();await loadGroups();renderSide("channels");toast("群聊已创建");
   };
 }
@@ -1197,30 +1233,34 @@ function showInvite(type,ref,content,exclude){
   $("#doInvite").onclick=async()=>{
     const sel=$$(".invite-opt input:checked").map(x=>x.value);
     if(!sel.length){toast("请选择成员",true);return;}
-    for(const to of sel){await cloud.database.from("invitations").insert({inviter:S.user.username,invitee:to,type,ref,content});}
-    closeModal();toast("邀请已发送给 "+sel.length+" 人");
+    let okCount=0,lastErr="";
+    for(const to of sel){
+      try{
+        const res=await rpc("ps_invite_create",{p_token:getToken(),p_invitee:to,p_type:type,p_ref:ref||null,p_content:content||""});
+        if(res.ok)okCount++;else lastErr=errMsg(res.error);
+      }catch(e){lastErr=e.message;}
+    }
+    closeModal();
+    if(okCount)toast("邀请已发送给 "+okCount+" 人"+(lastErr?("；失败原因："+lastErr):""));
+    else toast(lastErr||"邀请发送失败",true);
   };
 }
 async function acceptInvite(id,type,ref,from){
-  await cloud.database.from("invitations").update({status:"accepted"}).eq("id",id);
-  if(type==="friend"){
-    await establishFriendship(S.user.username,from);
-    toast("已成为好友");
-  }else if(type==="dm"){
+  try{
+    const res=await rpc("ps_invite_respond",{p_token:getToken(),p_id:id,p_accept:true});
+    if(!res.ok){toast(errMsg(res.error),true);return;}
+  }catch(e){toast(e.message,true);return;}
+  if(type==="dm"){
     rememberDmPeer(from);
     toast("已打开私聊，可以直接回复");
     openDM(from);
     loadInvites().then(()=>{renderSide("invites");updateInviteBadge();});
     return;
-  }else if(type==="group"){
-    const{data:g}=await cloud.database.from("chat_groups").select("*").eq("id",+ref).maybeSingle();
-    if(g){let m=[];try{m=JSON.parse(g.members||"[]");}catch(e){}if(!m.includes(S.user.username))m.push(S.user.username);
-      await cloud.database.from("chat_groups").update({members:JSON.stringify(m)}).eq("id",g.id);}
-    toast("已加入群聊");
-  }else if(type==="team"||type==="word"){
-    await joinTeam(+ref,from);toast("已加入队伍");
-  }else toast("已接受邀请");
-  loadInvites().then(()=>{loadFriends();loadGroups();renderSide("channels");updateInviteBadge();});
+  }else if(type==="friend")toast("已成为好友");
+  else if(type==="group")toast("已加入群聊");
+  else if(type==="team"||type==="word")toast("已加入队伍");
+  else toast("已接受邀请");
+  loadInvites().then(()=>{loadFriends();loadGroups();loadMyTeam();renderSide("channels");updateInviteBadge();});
 }
 
 /* ============================================================
@@ -1756,8 +1796,10 @@ function showCreateTeam(){
   $(".modal-close").onclick=closeModal;
   $("#doCreateT").onclick=async()=>{
     const name=$("#tName").value.trim();if(!name){toast("请输入队名",true);return;}
-    const{error}=await cloud.database.from("teams").insert({name,leader:S.user.username,game:"word",members:JSON.stringify([S.user.username]),max_size:S.teamMax,status:"open"});
-    if(error){toast("创建失败",true);return;}
+    try{
+      const res=await rpc("ps_team_create",{p_token:getToken(),p_name:name});
+      if(!res.ok){toast(errMsg(res.error),true);return;}
+    }catch(e){toast("创建失败："+e.message,true);return;}
     closeModal();await loadMyTeam();renderWordHome($("#main"));toast("队伍已创建");
   };
 }
@@ -1766,25 +1808,24 @@ async function showJoinTeam(){
   const list=(data||[]).filter(t=>{let m=[];try{m=JSON.parse(t.members||"[]");}catch(e){}return m.length<t.max_size&&!m.includes(S.user.username);});
   modal(`<div class="modal-head"><button class="modal-close">✕</button><h2>加入队伍</h2></div>
     <div class="modal-body"><div class="invite-list">${list.map(t=>`<div class="team-opt"><div><b>${esc(t.name)}</b> <span class="hint">队长 ${esc(nickOf(t.leader))}</span></div>
-      <button class="btn sm primary" data-jt="${t.id}">加入</button></div>`).join("")||'<div class="cs-hint">暂无可加入的队伍</div>'}</div></div>`);
+      <button class="btn sm primary" data-jt="${t.id}">申请加入</button></div>`).join("")||'<div class="cs-hint">暂无可加入的队伍</div>'}</div></div>`);
   $(".modal-close").onclick=closeModal;
   $$("[data-jt]").forEach(b=>b.onclick=()=>{closeModal();joinTeam(+b.dataset.jt);});
 }
-async function joinTeam(id,fromLeader){
+async function joinTeam(id){
   const{data:t}=await cloud.database.from("teams").select("*").eq("id",id).maybeSingle();if(!t){toast("队伍不存在",true);return;}
-  let m=[];try{m=JSON.parse(t.members||"[]");}catch(e){}
-  if(m.includes(S.user.username)){toast("你已在队伍中");return;}
-  if(m.length>=t.max_size){toast("队伍已满",true);return;}
-  m.push(S.user.username);
-  await cloud.database.from("teams").update({members:JSON.stringify(m)}).eq("id",id);
-  if(fromLeader) await cloud.database.from("invitations").update({status:"accepted"}).eq("invitee",S.user.username).eq("inviter",fromLeader).eq("type","word").catch(()=>{});
-  await loadMyTeam();if(S.page==="game")renderWordHome($("#main"));toast("已加入队伍");
+  try{
+    const res=await rpc("ps_invite_create",{p_token:getToken(),p_invitee:t.leader,p_type:"word",p_ref:String(t.id),p_content:"申请加入队伍「"+t.name+"」"});
+    if(!res.ok){toast(errMsg(res.error),true);return;}
+  }catch(e){toast("申请失败："+e.message,true);return;}
+  toast("已发送入队申请，等队长同意");if(S.page==="game")renderWordHome($("#main"));
 }
 async function leaveTeam(){
-  if(!S.team)return;let m=[];try{m=JSON.parse(S.team.members||"[]");}catch(e){}
-  m=m.filter(u=>u!==S.user.username);
-  if(m.length===0){await cloud.database.from("teams").update({status:"closed"}).eq("id",S.team.id);}
-  else await cloud.database.from("teams").update({members:JSON.stringify(m),leader:m[0]}).eq("id",S.team.id);
+  if(!S.team)return;
+  try{
+    const res=await rpc("ps_team_leave",{p_token:getToken(),p_id:S.team.id});
+    if(!res.ok){toast(errMsg(res.error),true);return;}
+  }catch(e){toast(e.message,true);return;}
   S.team=null;renderWordHome($("#main"));toast("已离队");
 }
 function openWordDirection(key){
@@ -2153,7 +2194,6 @@ function bindAdmin(main,users){
       const res=await rpc("ps_admin_set_muted",{p_admin_token:getToken(),p_id:id,p_muted:m});
       if(!res.ok) throw new Error(errMsg(res.error));
     }catch(e){toast(e.message,true);return;}
-    await cloud.database.from("chat_messages").insert({channel:"system",room:"",sender:"admin",content:m?'系统公告：某成员已被禁言':'系统公告：某成员已被解除禁言',kind:"system"}).catch(()=>{});
     toast(m?"已禁言":"已解除禁言");renderAdmin(main);});
   $$("[data-edit-bday]").forEach(b=>b.onclick=()=>{
     const id=+b.dataset.editBday,uname=b.dataset.uname,cur=b.dataset.bday;
@@ -2240,14 +2280,14 @@ function openPointsAdjuster(id,uname,cur,main){
         if(!names.length){toast("请填写至少一个可见账号",true);return;}
       }
       const content=`📊 积分变动公告：管理员将「${uname}」的积分${delta>0?'增加':'扣除'} ${Math.abs(delta)} 分，当前 ${next} 分。`;
-      const row={content,start_at:now.toISOString(),end_at:end.toISOString(),active:true,
-        author:S.user.username,audience:scope,
-        target_user:scope==="friends_of"?uname:null,
-        audience_names:scope==="named"?JSON.stringify(names):null,
-        created_at:now.toISOString()};
-      const{error:annErr}=await cloud.database.from("announcements").insert(row);
-      if(annErr){toast("积分已调整，但公告发布失败："+annErr.message,true);}
-      else await loadAnnouncements();
+      const args={p_token:getToken(),p_content:content,p_days:days,p_placement:"world",p_audience:scope};
+      if(scope==="friends_of")args.p_target_user=uname;
+      if(scope==="named")args.p_audience_names=JSON.stringify(names);
+      try{
+        const r=await rpc("ps_ann_post",args);
+        if(!r.ok)toast("积分已调整，但公告发布失败："+errMsg(r.error),true);
+        else await loadAnnouncements();
+      }catch(e){toast("积分已调整，但公告发布失败："+e.message,true);}
     }
     closeModal();toast(`已为「${uname}」${delta>0?'增加':'扣除'} ${Math.abs(delta)} 积分，当前 ${next} 分`);
     renderLeaderboard();renderAnnounceBar();renderAdmin(main);

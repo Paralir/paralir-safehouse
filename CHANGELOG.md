@@ -26,9 +26,10 @@
 | **v20261124d** | 2026-11-27 | `28b9e7d` | 公告撤回去掉 confirm，点击即撤 | 回归 24/24 | 已上线 |
 | **v20261124e** | 2026-11-27 | `d10d8e4` | 公告撤回改为软删除并记录撤回时间 | 回归 24/24 | 已上线 |
 | **v20261124f** | 2026-11-28 | `471f821` | 上线体检后的修复：Boss 血量判定、断网保登录、云请求超时、词库清洗、favicon | jsdom 全流程 0 异常 | 未发布（P0 下线） |
-| **v20261128a** | 2026-11-28 | 本次提交 | P0 前端改造：登录/注册/改密/资料/积分/管理员全部改走 RPC，删除客户端哈希 | jsdom RPC 冒烟 0 异常、`node --check` 通过 | 已发布（P0 数据库同步落地） |
+| **v20261128a** | 2026-11-28 | `50adba9` | P0 前端改造：登录/注册/改密/资料/积分/管理员全部改走 RPC，删除客户端哈希 | jsdom RPC 冒烟 0 异常；回归 24/24 | 已发布（P0 数据库同步落地） |
+| **v20261128b** | 2026-11-28 | 本次提交 | 阶段 2a：聊天/公告/好友/邀请/群/组队/存档 16 处写入改走 RPC；私聊收归管理员；站主覆盖 | jsdom 冒烟 0 异常；RPC 签名实测 15/15；三条验收通过 | 已发布（2a 写权限同步收口） |
 
-> 当前状态：P0 数据库已实施（3 表 + 17 RPC + 权限收紧），本地/GitHub 于本次提交对齐 `v20261128a`，线上已重新发布、sharecode 不变。提交号以 `git log -1` 与 `git ls-remote origin refs/heads/main` 的实时结果为准，不在此写死以免失真。网关此前因下架返回 403，不能作为权限验收依据；三条验收以联调脚本实测为准。
+> 当下通行版本：**v20261128b**　|　线上／本地／GitHub 三方一致。提交号随每次提交递增，以 `git log -1` 与 `git ls-remote origin refs/heads/main` 的实时结果为准，不在此写死以免失真。
 
 ---
 
@@ -169,6 +170,26 @@
 **验证**：`node --check` 通过；jsdom 模拟 RPC 测试：登录 → 首页 → 管理列表 → 资料保存 → 退出（调用序列 `ps_login/ps_me/ps_admin_list_users/ps_update_profile/ps_admin_list_users/ps_logout`，0 异常）；仅带 `ps_token` 启动可自动登录（`ps_me`）。
 
 **未完成**：数据库 17 个 RPC、3 张表、REVOKE/GRANT 由 WorkBuddy 在用户签字后执行；联调通过前站点保持下线。
+
+---
+
+### v20261128b · 阶段 2a 前端改造（写保护 + 归属规则） · 2026-11-28
+
+**缘由**：P0 之后聊天/好友/群/邀请/公告/存档/组队 7 张表仍可被匿名改写；按《阶段2a-RPC契约定稿》把写操作全部收进 RPC，并落实「站主覆盖」与「私聊是管理员权利」。
+
+**改编详情**（`app.js`）：
+- 聊天：发送 → `ps_chat_send`，撤回 → `ps_chat_recall`；撤回权限改为「本人或 Paralir」（不再按 admin 角色放行）。
+- 公告：入口对所有登录用户开放；普通用户用简化表单（600 字 + 天数），管理员/站主保留投放位置与定向人群 → `ps_ann_post`；撤回 → `ps_ann_recall`；管理列表普通用户只见自己的，站主见全部。
+- 好友：申请 → `ps_friend_request`；删除/撤回 → `ps_friend_remove`；接受改由 `ps_invite_respond` 服务端建立双方关系。
+- 邀请：发送 → `ps_invite_create`；接受/忽略 → `ps_invite_respond`；接受后的入群/入队由服务端完成。
+- 群：创建 → `ps_group_create`；组队：创建 → `ps_team_create`、离队 → `ps_team_leave`、加入改为「申请加入」（走邀请，由队长同意）。
+- 存档：`saveProgress` → `ps_progress_save`。
+- 私聊：`openDM` 增加判定——普通用户仅在已有会话时可进入，新会话提示「私聊仅管理员可发起」；好友列表的私聊按钮仅管理员/站主可见。
+- 删除失效的 `setFriendActive` / `establishFriendship` 直写逻辑；管理员禁言不再直写系统消息。
+
+**验证**：`node --check` 通过；jsdom 冒烟（登录 → 发消息 → 管理列表 → 资料保存 → 退出）调用序列正确、0 异常；对线上 15 个阶段 2a 函数做过签名探测（参数名与错误码全部符合契约）；三条验收全部通过。
+
+**数据库配套**：前端发布并完成线上冒烟后，已对 `chat_messages` / `friends` / `chat_groups` / `invitations` / `announcements` / `game_progress` / `teams` 7 张表撤销 `INSERT/UPDATE/DELETE`（含 `TRUNCATE/TRIGGER/REFERENCES` 残留），保留 `SELECT`；`SELECT` 侧隐私收口留待阶段 2b。
 
 ---
 
